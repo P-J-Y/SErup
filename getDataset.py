@@ -20,9 +20,10 @@ from sunpy.physics.differential_rotation import diff_rot, solar_rotate_coordinat
 import pandas as pd
 
 
-# 1、活动区的时刻现在用的初始时刻，实际上应该考虑从初始到end
-# 2、加入判断活动区是否在cme附近的判定
+# 1、活动区的时刻现在用的初始时刻，实际上应该考虑从初始到end ok
+# 2、加入判断活动区是否在cme附近的判定 ok
 # 3、如果事件在边缘，那么画一个方框就会报错，所以我限制了事件的位置不能太偏边缘
+# 4、getFrame 中每个波段（图）都用一个封装的程序来实现，要哪个波段作为一个输入
 
 # 给出时间范围内的活动区位置、时间范围等信息
 
@@ -126,22 +127,51 @@ def getFrame(t,c1,c2,width,height,iscme=0,idx=0):
     :param iscme: 
     :return: 
     '''
-    timeStrForFig = t.strftime("%Y%m%d%H%M%S")
     hv = HelioviewerClient()
-    # plot AR images
-    file = hv.download_jp2(t, observatory="SDO", instrument="HMI", measurement="magnetogram")
-    hmi = Map(file)
-    bottom_left = SkyCoord((c1 - width/2) * u.arcsec,
-                           (c2 - height/2) * u.arcsec,
-                           frame=hmi.coordinate_frame)  # 给出区域左下点的坐标（第一个参数是x坐标，第二个是y）
+    timeStrForFig = t.strftime("%Y%m%d%H%M%S")
+
+    def getMap(t,observatory="SDO", instrument="HMI", measurement="magnetogram"):
+        file = hv.download_jp2(t,
+                               observatory=observatory,
+                               instrument=instrument,
+                               measurement=measurement)
+        themap = Map(file)
+        fileName = "figure/{}/{}/{}/aia_ar_{}_{}.png".format(iscme, measurement, idx, timeStrForFig, idx)
+        return themap,fileName
+
+    hmiMap,hmiName = getMap(t,observatory="SDO", instrument="HMI", measurement="magnetogram")
+    aia171Map, aia171Name = getMap(t, observatory="SDO", instrument="AIA", measurement="171")
+    aia193Map,aia193Name = getMap(t,observatory="SDO", instrument="AIA", measurement="193")
+    aia94Map,aia94Name = getMap(t, observatory="SDO", instrument="AIA", measurement="94")
+    aia211Map,aia211Name = getMap(t, observatory="SDO", instrument="AIA", measurement="211")
+    aia304Map,aia304Name = getMap(t, observatory="SDO", instrument="AIA", measurement="304")
+    bottom_left = SkyCoord((c1 - width / 2) * u.arcsec,
+                           (c2 - height / 2) * u.arcsec,
+                           frame=hmiMap.coordinate_frame)  # 给出区域左下点的坐标（第一个参数是x坐标，第二个是y）
     width = width * u.arcsec
     height = height * u.arcsec
 
-    file = hv.download_jp2(t, observatory="SDO", instrument="AIA", measurement="193")
-    aia = Map(file)
-    aia_submap = aia.submap(bottom_left, width=width, height=height)
-    hmi_submap = hmi.submap(bottom_left, width=width, height=height)
+    def getSubMap(aMap,bottom_left,width,height,savefileName):
+        thesubmap = aMap.submap(bottom_left, width=width, height=height)
+        figure = plt.figure(frameon=False)
+        ax = plt.subplot(projection=thesubmap)
+        # Disable the axis
+        # ax1.set_axis_off()
+        # Plot the map.
+        #norm = aia_submap.plot_settings['norm']
+        #norm.vmin, norm.vmax = np.percentile(aia_submap.data, [1, 99.9])
+        ax.imshow(thesubmap.data,
+        #           norm=norm,
+                   cmap=thesubmap.plot_settings['cmap'])
+        plt.savefig(savefileName)
+    getSubMap(hmiMap,bottom_left,width,height,hmiName)
+    getSubMap(aia94Map, bottom_left, width, height, aia94Name)
+    getSubMap(aia171Map, bottom_left, width, height, aia171Name)
+    getSubMap(aia193Map, bottom_left, width, height, aia193Name)
+    getSubMap(aia211Map, bottom_left, width, height, aia211Name)
+    getSubMap(aia304Map, bottom_left, width, height, aia304Name)
 
+    '''
     figure1 = plt.figure(frameon=False)
     ax1 = plt.subplot(projection=aia_submap)
     # Disable the axis
@@ -168,6 +198,7 @@ def getFrame(t,c1,c2,width,height,iscme=0,idx=0):
                #           norm=norm,
                cmap=hmi_submap.plot_settings['cmap'])
     plt.savefig("figure/{}/mag/{}/hmi_ar_{}_{}.png".format(iscme,idx,timeStrForFig,idx))
+    '''
 
 '''
 tstart = '2017/05/01 07:23:56'
@@ -245,7 +276,7 @@ AR_UR_ys = ARresults['hek']['boundbox_c2ur']
 AR_widths = AR_UR_xs-AR_LL_xs
 AR_heights = AR_UR_ys-AR_LL_ys
 
-ar_idx = 0
+ar_idx = 3
 getFrames(AR_coords[ar_idx],
           max(AR_tstarts[ar_idx],time1),
           min(AR_tends[ar_idx],time2),
