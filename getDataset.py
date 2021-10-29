@@ -1,6 +1,8 @@
 import numpy as np
 from sunpy.net import attrs as a
 from sunpy.net import Fido
+from sunpy.coordinates import frames
+from sunpy.coordinates.utils import GreatArc
 import time,datetime
 #from sunpy.net import hek2vso
 #h2v = hek2vso.H2VClient()
@@ -83,20 +85,26 @@ def getDists(ARresults,cache,fmt = "%Y-%m-%dT%H:%M:%S"):  ##!!!还有bug
     AR_ts = AR_tstarts+np.divide(np.subtract(AR_tends,AR_tstarts),2)
     AR_xs = ARresults['hek']['event_coord1']
     AR_ys = ARresults['hek']['event_coord2']
-
-    rotated_coords = []
+    #AR_coords = []
+    dists = []
     for i in range(len(AR_xs)):
-        rotated_coords.append(solar_rotate_coordinate(
-            SkyCoord(AR_xs[i] * u.arcsec, AR_ys[i] * u.arcsec, 1 * u.AU,
-                     frame="heliographic_stonyhurst",
-                     obstime=AR_ts[i]),
-            time=CE_t))
-    return rotated_coords
+        theAR_coord = SkyCoord(AR_xs[i] * u.arcsec, AR_ys[i] * u.arcsec, observer='earth',
+                     frame=frames.Helioprojective,
+                     obstime=AR_ts[i])
+        theRotated_coord = solar_rotate_coordinate(theAR_coord , time=CE_t)
+        #AR_coords.append(theAR_coord)
+        dists.append(
+            np.sqrt((theRotated_coord.Tx.arcsec-CE_x)**2+
+                     (theRotated_coord.Ty.arcsec-CE_y)**2)
+        )
+    cache = (CE_x, CE_y, CE_tstart, CE_tend, CE_t,
+             AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts)
+    return dists,cache
 
 tstart = '2015/05/01 07:23:56'
 tend = '2015/05/02 08:40:29'
 CEresults = getCmes(tstart, tend)
 ARresults,cache = getArs(CEresults)
-dists = getDists(ARresults,cache)
+dists,cache = getDists(ARresults,cache)
 
-
+print(dists)
