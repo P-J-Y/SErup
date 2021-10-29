@@ -100,11 +100,89 @@ def getDists(ARresults,cache,fmt = "%Y-%m-%dT%H:%M:%S"):  ##!!!还有bug
     cache = (CE_x, CE_y, CE_tstart, CE_tend, CE_t,
              AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts)
     return dists,cache
-
+'''
 tstart = '2015/05/01 07:23:56'
 tend = '2015/05/02 08:40:29'
 CEresults = getCmes(tstart, tend)
 ARresults,cache = getArs(CEresults)
 dists,cache = getDists(ARresults,cache)
+'''
 
-print(dists)
+def getFrame(t,c1,c2,width,height,iscme=0,idx=0):
+    '''
+    
+    :param t: ar time (python datetime object)
+    :param c1: ar center x in arcsec
+    :param c2: ar center y
+    :param width: ar region's width
+    :param height: ar region's height
+    :param iscme: 
+    :return: 
+    '''
+    timeStrForFig = t.strftime("%Y%m%d%H%M%S")
+    hv = HelioviewerClient()
+    # plot AR images
+    file = hv.download_jp2(t, observatory="SDO", instrument="HMI", measurement="magnetogram")
+    hmi = Map(file)
+    bottom_left = SkyCoord((c1 - width/2) * u.arcsec,
+                           (c2 - height/2) * u.arcsec,
+                           frame=hmi.coordinate_frame)  # 给出区域左下点的坐标（第一个参数是x坐标，第二个是y）
+    width = width * u.arcsec
+    height = height * u.arcsec
+
+    file = hv.download_jp2(t, observatory="SDO", instrument="AIA", measurement="193")
+    aia = Map(file)
+    aia_submap = aia.submap(bottom_left, width=width, height=height)
+    hmi_submap = hmi.submap(bottom_left, width=width, height=height)
+
+    figure1 = plt.figure(frameon=False)
+    ax1 = plt.subplot(projection=aia_submap)
+    # Disable the axis
+    # ax1.set_axis_off()
+
+    # Plot the map.
+    norm = aia_submap.plot_settings['norm']
+    norm.vmin, norm.vmax = np.percentile(aia_submap.data, [1, 99.9])
+    ax1.imshow(aia_submap.data,
+               norm=norm,
+               cmap=aia_submap.plot_settings['cmap'])
+    plt.savefig("figure/{}/193/aia_ar_{}_{}.png".format(iscme,timeStrForFig,idx))
+
+    figure2 = plt.figure(frameon=False)
+    ax2 = plt.subplot(projection=hmi_submap)
+    # Disable the axis
+    # ax2.set_axis_off()
+
+    # Plot the map. Since are not interested in the exact map coordinates, we can
+    # simply use :meth:`~matplotlib.Axes.imshow`.
+    # norm = hmi_submap.plot_settings['norm']
+    # norm.vmin, norm.vmax = np.percentile(hmi_submap.data, [1, 99.9])
+    ax2.imshow(hmi_submap.data,
+               #           norm=norm,
+               cmap=hmi_submap.plot_settings['cmap'])
+    plt.savefig("figure/{}/mag/hmi_ar_{}_{}.png".format(iscme,timeStrForFig,idx))
+
+
+tstart = '2017/05/01 07:23:56'
+tend = '2017/05/10 08:40:29'
+CEresults = getCmes(tstart, tend)
+ARresults,cache = getArs(CEresults)
+dists,cache = getDists(ARresults,cache)
+CE_x, CE_y, CE_tstart, CE_tend, CE_t, \
+             AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts = cache
+
+ar_idx = 2
+AR_area = ARresults['hek']['area_raw'][ar_idx]
+AR_LL_x = ARresults['hek']['boundbox_c1ll'][ar_idx]
+AR_LL_y = ARresults['hek']['boundbox_c2ll'][ar_idx]
+AR_UR_x = ARresults['hek']['boundbox_c1ur'][ar_idx]
+AR_UR_y = ARresults['hek']['boundbox_c2ur'][ar_idx]
+AR_width = AR_UR_x-AR_LL_x
+AR_height = AR_UR_y-AR_LL_y
+getFrame(AR_ts[ar_idx],
+         AR_xs[ar_idx],
+         AR_ys[ar_idx],
+         max(AR_width,300),
+         max(AR_height,300),
+         iscme=0,
+         idx=ar_idx)
