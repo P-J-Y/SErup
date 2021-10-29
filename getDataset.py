@@ -22,8 +22,10 @@ import pandas as pd
 
 # 1、活动区的时刻现在用的初始时刻，实际上应该考虑从初始到end ok
 # 2、加入判断活动区是否在cme附近的判定 ok
-# 3、如果事件在边缘，那么画一个方框就会报错，所以我限制了事件的位置不能太偏边缘
+# 3、如果事件在边缘，方框应该适当取小一些；不要直接放弃这些活动区，很多大活动区都在边缘
 # 4、getFrame 中每个波段（图）都用一个封装的程序来实现，要哪个波段作为一个输入
+# 5、从有要爆发的结构出现开始，取。看一下那些结构浮现到爆发的特征时间是多少。
+# 6、ARresults、CMEresults这些能不能直接写成一个列表啊？
 
 # 给出时间范围内的活动区位置、时间范围等信息
 
@@ -257,7 +259,7 @@ def getFrames(AR_coord,tstart,tend,width=100,height=100,iscme=0,freq='min',ar_id
 tstart = '2017/07/01 07:23:56'
 tend = '2017/07/10 08:40:29'
 CEresults = getCmes(tstart, tend)
-ARresults,cache = getArs(CEresults)
+ARresults,cache = getArs(CEresults,CEidx=0)
 dists,cache = getDists(ARresults,cache)
 CE_x, CE_y, CE_tstart, CE_tend, CE_t, \
             AR_xs, AR_ys, AR_tstarts, \
@@ -276,7 +278,7 @@ AR_UR_ys = ARresults['hek']['boundbox_c2ur']
 AR_widths = AR_UR_xs-AR_LL_xs
 AR_heights = AR_UR_ys-AR_LL_ys
 
-ar_idx = 3
+ar_idx = 2
 getFrames(AR_coords[ar_idx],
           max(AR_tstarts[ar_idx],time1),
           min(AR_tends[ar_idx],time2),
@@ -285,3 +287,6 @@ getFrames(AR_coords[ar_idx],
           iscme=0,
           freq='1min',
           ar_idx=ar_idx)
+
+def getCmeSunWithArIndex(cme_tstart,cme_tend,ar_scales,ar_xs,ar_ys):
+    return None
