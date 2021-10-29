@@ -64,6 +64,7 @@ def getArs(CEresults,CEidx = 0,time_earlier1=30,time_earlier2=0,event_type='AR',
     AR_tend = CE_tstart - datetime.timedelta(minutes=time_earlier2)
     ARresult = Fido.search(a.Time(AR_tstart, AR_tend), a.hek.EventType(event_type))
     cache = (CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend)
+    ARresults = []
     return ARresult,cache
 '''
 tstart = '2015/05/01 07:23:56'
@@ -152,7 +153,7 @@ def getFrame(t,c1,c2,width,height,iscme=0,idx=0):
     ax1.imshow(aia_submap.data,
                norm=norm,
                cmap=aia_submap.plot_settings['cmap'])
-    plt.savefig("figure/{}/193/aia_ar_{}_{}.png".format(iscme,timeStrForFig,idx))
+    plt.savefig("figure/{}/193/{}/aia_ar_{}_{}.png".format(iscme,idx,timeStrForFig,idx))
 
     figure2 = plt.figure(frameon=False)
     ax2 = plt.subplot(projection=hmi_submap)
@@ -166,7 +167,7 @@ def getFrame(t,c1,c2,width,height,iscme=0,idx=0):
     ax2.imshow(hmi_submap.data,
                #           norm=norm,
                cmap=hmi_submap.plot_settings['cmap'])
-    plt.savefig("figure/{}/mag/hmi_ar_{}_{}.png".format(iscme,timeStrForFig,idx))
+    plt.savefig("figure/{}/mag/{}/hmi_ar_{}_{}.png".format(iscme,idx,timeStrForFig,idx))
 
 '''
 tstart = '2017/05/01 07:23:56'
@@ -222,8 +223,8 @@ def getFrames(AR_coord,tstart,tend,width=100,height=100,iscme=0,freq='min',ar_id
 
 
 
-tstart = '2017/05/01 07:23:56'
-tend = '2017/05/10 08:40:29'
+tstart = '2017/07/01 07:23:56'
+tend = '2017/07/10 08:40:29'
 CEresults = getCmes(tstart, tend)
 ARresults,cache = getArs(CEresults)
 dists,cache = getDists(ARresults,cache)
@@ -232,12 +233,24 @@ CE_x, CE_y, CE_tstart, CE_tend, CE_t, \
             AR_tends, AR_ts, AR_coords, cmaps, \
             time1,time2 = cache
 
-ar_idx = 2
+#min_idx = dists.index(min(dists))
+#ar_idx = min_idx
+#print(min_idx,min(dists))
+
+AR_areas = ARresults['hek']['area_raw']
+AR_LL_xs = ARresults['hek']['boundbox_c1ll']
+AR_LL_ys = ARresults['hek']['boundbox_c2ll']
+AR_UR_xs = ARresults['hek']['boundbox_c1ur']
+AR_UR_ys = ARresults['hek']['boundbox_c2ur']
+AR_widths = AR_UR_xs-AR_LL_xs
+AR_heights = AR_UR_ys-AR_LL_ys
+
+ar_idx = 0
 getFrames(AR_coords[ar_idx],
           max(AR_tstarts[ar_idx],time1),
           min(AR_tends[ar_idx],time2),
-          width=100,
-          height=100,
+          width=AR_widths[ar_idx],
+          height=AR_heights[ar_idx],
           iscme=0,
           freq='1min',
           ar_idx=ar_idx)
