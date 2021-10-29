@@ -17,6 +17,7 @@ from astropy.time import TimeDelta
 import sunpy.data.sample
 import sunpy.map
 from sunpy.physics.differential_rotation import diff_rot, solar_rotate_coordinate
+import pandas as pd
 
 
 # 1、活动区的时刻现在用的初始时刻，实际上应该考虑从初始到end
@@ -71,13 +72,14 @@ CEresults = getCmes(tstart, tend)
 ARresults,cache = getArs(CEresults)
 '''
 
-def getDists(ARresults,cache,fmt = "%Y-%m-%dT%H:%M:%S"):  ##!!!还有bug
+def getDists(ARresults,cache,fmt = "%Y-%m-%dT%H:%M:%S"):
     '''
     
     :param ARresults: 
     :param cache: 
     :return: 
     '''
+    hv = HelioviewerClient()
     CE_x, CE_y, CE_tstart, CE_tend = cache
     CE_t = CE_tstart+(CE_tend-CE_tstart)/2
     AR_tstarts = [datetime.datetime.strptime(i,fmt) for i in ARresults['hek']['event_starttime']]
@@ -85,20 +87,23 @@ def getDists(ARresults,cache,fmt = "%Y-%m-%dT%H:%M:%S"):  ##!!!还有bug
     AR_ts = AR_tstarts+np.divide(np.subtract(AR_tends,AR_tstarts),2)
     AR_xs = ARresults['hek']['event_coord1']
     AR_ys = ARresults['hek']['event_coord2']
-    #AR_coords = []
+    AR_coords = []
     dists = []
+    cframes = []
     for i in range(len(AR_xs)):
-        theAR_coord = SkyCoord(AR_xs[i] * u.arcsec, AR_ys[i] * u.arcsec, observer='earth',
-                     frame=frames.Helioprojective,
-                     obstime=AR_ts[i])
+        cfile = hv.download_jp2(AR_ts[i], observatory="SDO", instrument="HMI", measurement="magnetogram")
+        cmap = Map(cfile)
+        cframe = cmap.coordinate_frame
+        cframes.append(cframe)
+        theAR_coord = SkyCoord(AR_xs[i] * u.arcsec, AR_ys[i] * u.arcsec, frame=cframe)
         theRotated_coord = solar_rotate_coordinate(theAR_coord , time=CE_t)
-        #AR_coords.append(theAR_coord)
+        AR_coords.append(theAR_coord)
         dists.append(
             np.sqrt((theRotated_coord.Tx.arcsec-CE_x)**2+
                      (theRotated_coord.Ty.arcsec-CE_y)**2)
         )
     cache = (CE_x, CE_y, CE_tstart, CE_tend, CE_t,
-             AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts)
+             AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts,AR_coords,cframes)
     return dists,cache
 '''
 tstart = '2015/05/01 07:23:56'
@@ -162,14 +167,15 @@ def getFrame(t,c1,c2,width,height,iscme=0,idx=0):
                cmap=hmi_submap.plot_settings['cmap'])
     plt.savefig("figure/{}/mag/hmi_ar_{}_{}.png".format(iscme,timeStrForFig,idx))
 
-
+'''
 tstart = '2017/05/01 07:23:56'
 tend = '2017/05/10 08:40:29'
 CEresults = getCmes(tstart, tend)
 ARresults,cache = getArs(CEresults)
 dists,cache = getDists(ARresults,cache)
 CE_x, CE_y, CE_tstart, CE_tend, CE_t, \
-             AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts = cache
+             AR_xs, AR_ys, AR_tstarts, \
+                AR_tends, AR_ts, AR_coords, cmaps = cache
 
 ar_idx = 2
 AR_area = ARresults['hek']['area_raw'][ar_idx]
@@ -186,3 +192,49 @@ getFrame(AR_ts[ar_idx],
          max(AR_height,300),
          iscme=0,
          idx=ar_idx)
+'''
+
+def getFrames(AR_coord,tstart,tend,width=100,height=100,iscme=0,freq='min',ar_idx=0):
+    '''
+    
+    :param x: 
+    :param y: 
+    :param t: 
+    :param tstart: 
+    :param tend: 
+    :param width: 
+    :param height: 
+    :param iscme: 
+    :return: 
+    '''
+    ts = list(pd.date_range(tstart, tend, freq=freq))
+    for t in ts:
+        rotated_coord = solar_rotate_coordinate(AR_coord, time=t)
+        getFrame(t,
+                 rotated_coord.Tx.arcsec,
+                 rotated_coord.Ty.arcsec,
+                 width,
+                 height,
+                 iscme=iscme,
+                 idx=ar_idx)
+
+
+
+tstart = '2017/05/01 07:23:56'
+tend = '2017/05/10 08:40:29'
+CEresults = getCmes(tstart, tend)
+ARresults,cache = getArs(CEresults)
+dists,cache = getDists(ARresults,cache)
+CE_x, CE_y, CE_tstart, CE_tend, CE_t, \
+             AR_xs, AR_ys, AR_tstarts, \
+                AR_tends, AR_ts, AR_coords, cmaps = cache
+
+ar_idx = 0
+getFrames(AR_coords[ar_idx],
+          AR_tstarts[ar_idx],
+          AR_tends[ar_idx],
+          width=100,
+          height=100,
+          iscme=0,
+          freq='min',
+          ar_idx=ar_idx)
