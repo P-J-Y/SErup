@@ -59,11 +59,11 @@ def getArs(CEresults,CEidx = 0,time_earlier1=30,time_earlier2=0,event_type='AR',
     CE_y = CEresults['hek']['event_coord2'][CEidx]
     CE_tstart = datetime.datetime.strptime(CEresults['hek']['event_starttime'][CEidx], fmt)
     CE_tend = datetime.datetime.strptime(CEresults['hek']['event_endtime'][CEidx],fmt)
-    cache = (CE_x, CE_y, CE_tstart, CE_tend)
 
     AR_tstart = CE_tstart - datetime.timedelta(minutes=time_earlier1)
     AR_tend = CE_tstart - datetime.timedelta(minutes=time_earlier2)
     ARresult = Fido.search(a.Time(AR_tstart, AR_tend), a.hek.EventType(event_type))
+    cache = (CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend)
     return ARresult,cache
 '''
 tstart = '2015/05/01 07:23:56'
@@ -80,7 +80,7 @@ def getDists(ARresults,cache,fmt = "%Y-%m-%dT%H:%M:%S"):
     :return: 
     '''
     hv = HelioviewerClient()
-    CE_x, CE_y, CE_tstart, CE_tend = cache
+    CE_x, CE_y, CE_tstart, CE_tend,time1,time2 = cache
     CE_t = CE_tstart+(CE_tend-CE_tstart)/2
     AR_tstarts = [datetime.datetime.strptime(i,fmt) for i in ARresults['hek']['event_starttime']]
     AR_tends = [datetime.datetime.strptime(i,fmt) for i in ARresults['hek']['event_endtime']]
@@ -103,7 +103,8 @@ def getDists(ARresults,cache,fmt = "%Y-%m-%dT%H:%M:%S"):
                      (theRotated_coord.Ty.arcsec-CE_y)**2)
         )
     cache = (CE_x, CE_y, CE_tstart, CE_tend, CE_t,
-             AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts,AR_coords,cframes)
+             AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts,AR_coords,cframes,
+             time1,time2)
     return dists,cache
 '''
 tstart = '2015/05/01 07:23:56'
@@ -175,7 +176,8 @@ ARresults,cache = getArs(CEresults)
 dists,cache = getDists(ARresults,cache)
 CE_x, CE_y, CE_tstart, CE_tend, CE_t, \
              AR_xs, AR_ys, AR_tstarts, \
-                AR_tends, AR_ts, AR_coords, cmaps = cache
+                AR_tends, AR_ts, AR_coords, cmaps, \
+                 time1,time2 = cache
 
 ar_idx = 2
 AR_area = ARresults['hek']['area_raw'][ar_idx]
@@ -226,15 +228,16 @@ CEresults = getCmes(tstart, tend)
 ARresults,cache = getArs(CEresults)
 dists,cache = getDists(ARresults,cache)
 CE_x, CE_y, CE_tstart, CE_tend, CE_t, \
-             AR_xs, AR_ys, AR_tstarts, \
-                AR_tends, AR_ts, AR_coords, cmaps = cache
+            AR_xs, AR_ys, AR_tstarts, \
+            AR_tends, AR_ts, AR_coords, cmaps, \
+            time1,time2 = cache
 
-ar_idx = 0
+ar_idx = 2
 getFrames(AR_coords[ar_idx],
-          AR_tstarts[ar_idx],
-          AR_tends[ar_idx],
+          max(AR_tstarts[ar_idx],time1),
+          min(AR_tends[ar_idx],time2),
           width=100,
           height=100,
           iscme=0,
-          freq='min',
+          freq='1min',
           ar_idx=ar_idx)
