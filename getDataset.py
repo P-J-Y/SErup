@@ -3,11 +3,12 @@ from sunpy.net import attrs as a
 from sunpy.net import Fido
 from sunpy.coordinates import frames
 from sunpy.coordinates.utils import GreatArc
-import time,datetime
-#from sunpy.net import hek2vso
-#h2v = hek2vso.H2VClient()
+import time, datetime
+# from sunpy.net import hek2vso
+# h2v = hek2vso.H2VClient()
 from sunpy.net.helioviewer import HelioviewerClient
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from sunpy.map import Map
 import astropy.units as u
 from astropy.coordinates import SkyCoord
@@ -18,6 +19,8 @@ import sunpy.data.sample
 import sunpy.map
 from sunpy.physics.differential_rotation import diff_rot, solar_rotate_coordinate
 import pandas as pd
+import imageio
+import os
 
 
 # 1、活动区的时刻现在用的初始时刻，实际上应该考虑从初始到end ok
@@ -26,6 +29,7 @@ import pandas as pd
 # 4、getFrame 中每个波段（图）都用一个封装的程序来实现，要哪个波段作为一个输入
 # 5、从有要爆发的结构出现开始，取。看一下那些结构浮现到爆发的特征时间是多少。
 # 6、ARresults、CMEresults这些能不能直接写成一个列表啊？
+# 7、需要安装pillow ffmeg
 
 # 给出时间范围内的活动区位置、时间范围等信息
 
@@ -40,13 +44,15 @@ def getCmes(tstart, tend, event_type='CE'):
     CEresult = Fido.search(a.Time(tstart, tend), a.hek.EventType(event_type))
     return CEresult
 
+
 '''
 tstart = '2015/05/01 07:23:56'
 tend = '2015/05/02 08:40:29'
 CEresults = getCmes(tstart, tend)
 '''
 
-def getArs(CEresults,CEidx = 0,time_earlier1=30,time_earlier2=0,event_type='AR',fmt = "%Y-%m-%dT%H:%M:%S"):
+
+def getArs(CEresults, CEidx=0, time_earlier1=30, time_earlier2=0, event_type='AR', fmt="%Y-%m-%dT%H:%M:%S"):
     '''
     
     :param CEresults: result from getCmes 
@@ -61,13 +67,15 @@ def getArs(CEresults,CEidx = 0,time_earlier1=30,time_earlier2=0,event_type='AR',
     CE_x = CEresults['hek']['event_coord1'][CEidx]
     CE_y = CEresults['hek']['event_coord2'][CEidx]
     CE_tstart = datetime.datetime.strptime(CEresults['hek']['event_starttime'][CEidx], fmt)
-    CE_tend = datetime.datetime.strptime(CEresults['hek']['event_endtime'][CEidx],fmt)
+    CE_tend = datetime.datetime.strptime(CEresults['hek']['event_endtime'][CEidx], fmt)
 
     AR_tstart = CE_tstart - datetime.timedelta(minutes=time_earlier1)
     AR_tend = CE_tstart - datetime.timedelta(minutes=time_earlier2)
     ARresult = Fido.search(a.Time(AR_tstart, AR_tend), a.hek.EventType(event_type))
-    cache = (CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend)
-    return ARresult,cache
+    cache = (CE_x, CE_y, CE_tstart, CE_tend, AR_tstart, AR_tend)
+    return ARresult, cache
+
+
 '''
 tstart = '2015/05/01 07:23:56'
 tend = '2015/05/02 08:40:29'
@@ -75,7 +83,8 @@ CEresults = getCmes(tstart, tend)
 ARresults,cache = getArs(CEresults)
 '''
 
-def getDists(ARresults,cache,fmt = "%Y-%m-%dT%H:%M:%S"):
+
+def getDists(ARresults, cache, fmt="%Y-%m-%dT%H:%M:%S"):
     '''
     
     :param ARresults: 
@@ -83,11 +92,11 @@ def getDists(ARresults,cache,fmt = "%Y-%m-%dT%H:%M:%S"):
     :return: 
     '''
     hv = HelioviewerClient()
-    CE_x, CE_y, CE_tstart, CE_tend,time1,time2 = cache
-    CE_t = CE_tstart+(CE_tend-CE_tstart)/2
-    AR_tstarts = [datetime.datetime.strptime(i,fmt) for i in ARresults['hek']['event_starttime']]
-    AR_tends = [datetime.datetime.strptime(i,fmt) for i in ARresults['hek']['event_endtime']]
-    AR_ts = AR_tstarts+np.divide(np.subtract(AR_tends,AR_tstarts),2)
+    CE_x, CE_y, CE_tstart, CE_tend, time1, time2 = cache
+    CE_t = CE_tstart + (CE_tend - CE_tstart) / 2
+    AR_tstarts = [datetime.datetime.strptime(i, fmt) for i in ARresults['hek']['event_starttime']]
+    AR_tends = [datetime.datetime.strptime(i, fmt) for i in ARresults['hek']['event_endtime']]
+    AR_ts = AR_tstarts + np.divide(np.subtract(AR_tends, AR_tstarts), 2)
     AR_xs = ARresults['hek']['event_coord1']
     AR_ys = ARresults['hek']['event_coord2']
     AR_coords = []
@@ -99,16 +108,18 @@ def getDists(ARresults,cache,fmt = "%Y-%m-%dT%H:%M:%S"):
         cframe = cmap.coordinate_frame
         cframes.append(cframe)
         theAR_coord = SkyCoord(AR_xs[i] * u.arcsec, AR_ys[i] * u.arcsec, frame=cframe)
-        theRotated_coord = solar_rotate_coordinate(theAR_coord , time=CE_t)
+        theRotated_coord = solar_rotate_coordinate(theAR_coord, time=CE_t)
         AR_coords.append(theAR_coord)
         dists.append(
-            np.sqrt((theRotated_coord.Tx.arcsec-CE_x)**2+
-                     (theRotated_coord.Ty.arcsec-CE_y)**2)
+            np.sqrt((theRotated_coord.Tx.arcsec - CE_x) ** 2 +
+                    (theRotated_coord.Ty.arcsec - CE_y) ** 2)
         )
     cache = (CE_x, CE_y, CE_tstart, CE_tend, CE_t,
-             AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts,AR_coords,cframes,
-             time1,time2)
-    return dists,cache
+             AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts, AR_coords, cframes,
+             time1, time2)
+    return dists, cache
+
+
 '''
 tstart = '2015/05/01 07:23:56'
 tend = '2015/05/02 08:40:29'
@@ -117,7 +128,8 @@ ARresults,cache = getArs(CEresults)
 dists,cache = getDists(ARresults,cache)
 '''
 
-def getFrame(t,c1,c2,width,height,iscme=0,idx=0):
+
+def getFrame(t, c1, c2, width, height, iscme=0, idx=0):
     '''
     
     :param t: ar time (python datetime object)
@@ -131,41 +143,42 @@ def getFrame(t,c1,c2,width,height,iscme=0,idx=0):
     hv = HelioviewerClient()
     timeStrForFig = t.strftime("%Y%m%d%H%M%S")
 
-    def getMap(t,observatory="SDO", instrument="HMI", measurement="magnetogram"):
+    def getMap(t, observatory="SDO", instrument="HMI", measurement="magnetogram"):
         file = hv.download_jp2(t,
                                observatory=observatory,
                                instrument=instrument,
                                measurement=measurement)
         themap = Map(file)
         fileName = "figure/{}/{}/{}/aia_ar_{}_{}.png".format(iscme, measurement, idx, timeStrForFig, idx)
-        return themap,fileName
+        return themap, fileName
 
-    hmiMap,hmiName = getMap(t,observatory="SDO", instrument="HMI", measurement="magnetogram")
+    hmiMap, hmiName = getMap(t, observatory="SDO", instrument="HMI", measurement="magnetogram")
     aia171Map, aia171Name = getMap(t, observatory="SDO", instrument="AIA", measurement="171")
-    aia193Map,aia193Name = getMap(t,observatory="SDO", instrument="AIA", measurement="193")
-    aia94Map,aia94Name = getMap(t, observatory="SDO", instrument="AIA", measurement="94")
-    aia211Map,aia211Name = getMap(t, observatory="SDO", instrument="AIA", measurement="211")
-    aia304Map,aia304Name = getMap(t, observatory="SDO", instrument="AIA", measurement="304")
+    aia193Map, aia193Name = getMap(t, observatory="SDO", instrument="AIA", measurement="193")
+    aia94Map, aia94Name = getMap(t, observatory="SDO", instrument="AIA", measurement="94")
+    aia211Map, aia211Name = getMap(t, observatory="SDO", instrument="AIA", measurement="211")
+    aia304Map, aia304Name = getMap(t, observatory="SDO", instrument="AIA", measurement="304")
     bottom_left = SkyCoord((c1 - width / 2) * u.arcsec,
                            (c2 - height / 2) * u.arcsec,
                            frame=hmiMap.coordinate_frame)  # 给出区域左下点的坐标（第一个参数是x坐标，第二个是y）
     width = width * u.arcsec
     height = height * u.arcsec
 
-    def getSubMap(aMap,bottom_left,width,height,savefileName):
+    def getSubMap(aMap, bottom_left, width, height, savefileName):
         thesubmap = aMap.submap(bottom_left, width=width, height=height)
         figure = plt.figure(frameon=False)
         ax = plt.subplot(projection=thesubmap)
         # Disable the axis
         # ax1.set_axis_off()
         # Plot the map.
-        #norm = aia_submap.plot_settings['norm']
-        #norm.vmin, norm.vmax = np.percentile(aia_submap.data, [1, 99.9])
+        # norm = aia_submap.plot_settings['norm']
+        # norm.vmin, norm.vmax = np.percentile(aia_submap.data, [1, 99.9])
         ax.imshow(thesubmap.data,
-        #           norm=norm,
-                   cmap=thesubmap.plot_settings['cmap'])
+                  #           norm=norm,
+                  cmap=thesubmap.plot_settings['cmap'])
         plt.savefig(savefileName)
-    getSubMap(hmiMap,bottom_left,width,height,hmiName)
+
+    getSubMap(hmiMap, bottom_left, width, height, hmiName)
     getSubMap(aia94Map, bottom_left, width, height, aia94Name)
     getSubMap(aia171Map, bottom_left, width, height, aia171Name)
     getSubMap(aia193Map, bottom_left, width, height, aia193Name)
@@ -201,6 +214,7 @@ def getFrame(t,c1,c2,width,height,iscme=0,idx=0):
     plt.savefig("figure/{}/mag/{}/hmi_ar_{}_{}.png".format(iscme,idx,timeStrForFig,idx))
     '''
 
+
 '''
 tstart = '2017/05/01 07:23:56'
 tend = '2017/05/10 08:40:29'
@@ -229,7 +243,8 @@ getFrame(AR_ts[ar_idx],
          idx=ar_idx)
 '''
 
-def getFrames(AR_coord,tstart,tend,width=100,height=100,iscme=0,freq='min',ar_idx=0):
+
+def getFrames(AR_coord, tstart, tend, width=100, height=100, iscme=0, freq='min', ar_idx=0):
     '''
     
     :param x: 
@@ -288,7 +303,8 @@ getFrames(AR_coords[ar_idx],
           ar_idx=ar_idx)
 '''
 
-def deleteSmallARs(ARresults,threshold=100,fmt = "%Y-%m-%dT%H:%M:%S"):
+
+def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
     '''
 
     :param ARresults:
@@ -297,52 +313,165 @@ def deleteSmallARs(ARresults,threshold=100,fmt = "%Y-%m-%dT%H:%M:%S"):
     :return:
     '''
 
-    #把scale足够大的提取出来
-    #如果 |x+-width/2|>900  width = 2*min(|900+-x|)
+    # 把scale足够大的提取出来
+    # 如果 |x+-width/2|>900  width = 2*min(|900+-x|)
     AR_LL_xs = ARresults['hek']['boundbox_c1ll']
     AR_LL_ys = ARresults['hek']['boundbox_c2ll']
     AR_UR_xs = ARresults['hek']['boundbox_c1ur']
     AR_UR_ys = ARresults['hek']['boundbox_c2ur']
     AR_widths = AR_UR_xs - AR_LL_xs
     AR_heights = AR_UR_ys - AR_LL_ys
-    AR_scales = np.max([AR_widths,AR_heights],axis=0)
-    bigArIdx = AR_scales>=threshold
-    AR_tstarts = np.array([datetime.datetime.strptime(ARresults['hek']['event_starttime'][i], fmt) for i in range(len(AR_LL_xs))])
-    AR_tends = np.array([datetime.datetime.strptime(ARresults['hek']['event_endtime'][i], fmt) for i in range(len(AR_LL_xs))])
-    AR_ts = AR_tstarts+np.divide(np.subtract(AR_tends,AR_tstarts),2)
-    arInfo = {"ar_xs":ARresults['hek']['event_coord1'][bigArIdx],
-              "ar_ys":ARresults['hek']['event_coord1'][bigArIdx],
-              "ar_tstarts":AR_tstarts[bigArIdx],
-              "ar_tends":AR_tends[bigArIdx],
-              "ar_widths":AR_widths[bigArIdx],
-              "ar_heights":AR_heights[bigArIdx],
-              "ar_scales":AR_scales[bigArIdx],
-              "ar_ts":AR_ts[bigArIdx]
+    AR_scales = np.max([AR_widths, AR_heights], axis=0)
+    bigArIdx = AR_scales >= threshold
+    AR_tstarts = np.array(
+        [datetime.datetime.strptime(ARresults['hek']['event_starttime'][i], fmt) for i in range(len(AR_LL_xs))])
+    AR_tends = np.array(
+        [datetime.datetime.strptime(ARresults['hek']['event_endtime'][i], fmt) for i in range(len(AR_LL_xs))])
+    AR_ts = AR_tstarts + np.divide(np.subtract(AR_tends, AR_tstarts), 2)
+    arInfo = {"ar_xs": ARresults['hek']['event_coord1'][bigArIdx],
+              "ar_ys": ARresults['hek']['event_coord1'][bigArIdx],
+              "ar_tstarts": AR_tstarts[bigArIdx],
+              "ar_tends": AR_tends[bigArIdx],
+              "ar_widths": AR_widths[bigArIdx],
+              "ar_heights": AR_heights[bigArIdx],
+              "ar_scales": AR_scales[bigArIdx],
+              "ar_ts": AR_ts[bigArIdx],
+              "ar_num": sum(bigArIdx)
               }
+    hv = HelioviewerClient()
+    cframes = []
+    AR_coords = []
+    for i in range(arInfo["ar_num"]):
+        cfile = hv.download_jp2(arInfo["ar_ts"][i], observatory="SDO", instrument="HMI", measurement="magnetogram")
+        cmap = Map(cfile)
+        cframe = cmap.coordinate_frame
+        cframes.append(cframe)
+        theAR_coord = SkyCoord(arInfo["ar_xs"][i] * u.arcsec, arInfo["ar_ys"][i] * u.arcsec, frame=cframe)
+        AR_coords.append(theAR_coord)
+    arInfo["ar_cframes"] = cframes
+    arInfo["ar_coords"] = AR_coords
     return arInfo
-tstart = '2017/07/01 07:23:56'
+
+
+'''tstart = '2017/07/01 07:23:56'
 tend = '2017/07/10 08:40:29'
 CEresults = getCmes(tstart, tend)
 ARresults,cache = getArs(CEresults,CEidx=0)
 arInfo = deleteSmallARs(ARresults)
-CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend = cache
+CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend = cache'''
 
-#ARs  活动区列表的列表,包含每个CME（按照一定的序号）所对应的大活动区
-#下面的函数先实现一个CME的获取和标记
-def getCmeSunWithArIndex(cmeTstart,arInfo,time_earlier1=20,time_earlier2=-20,freq='min'):#cme时间：根据CME catalog；ar信息：根据HEK搜索出比较大的,最好是直接输入AR的完整信息；输出：gif+活动区信息列表
 
-    #记得在CME爆发时刻打个记号（图上标记一下，这样判断的时候才能判断出是哪个CME，免得搞错时间
+# ARs  活动区列表的列表,包含每个CME（按照一定的序号）所对应的大活动区
+# 下面的函数先实现一个CME的获取和标记
+def getCmeSunWithArIndex(cmeTstart,
+                         arInfo,
+                         time_earlier1=20,
+                         time_earlier2=-20,
+                         freq='min',
+                         observatory="SDO",
+                         instrument="AIA",
+                         measurement="193"):  # cme时间：根据CME catalog；ar信息：根据HEK搜索出比较大的,最好是直接输入AR的完整信息；输出：gif+活动区信息列表
+
+    # 记得在CME爆发时刻打个记号（图上标记一下，这样判断的时候才能判断出是哪个CME，免得搞错时间
+    hv = HelioviewerClient()
+
+    def getMap(t, observatory=observatory, instrument=instrument, measurement=measurement):
+        file = hv.download_jp2(t,
+                               observatory=observatory,
+                               instrument=instrument,
+                               measurement=measurement)
+        themap = Map(file)
+        timeStrForFig = t.strftime("%Y%m%d%H%M%S")
+        fileName = "figure/cme/aia_{}_{}.png".format(measurement, timeStrForFig)
+        return themap, fileName
+
+    def getCmeSunFrame(t, arInfo, idx, observatory=observatory, instrument=instrument, measurement=measurement):
+        themap, fileName = getMap(t, observatory=observatory, instrument=instrument, measurement=measurement)
+        timeStrForFig = t.strftime("%Y-%m-%d %H:%M:%S")
+        # fig = plt.figure()
+        # Provide the Map as a projection, which creates a WCSAxes object
+        ax = plt.subplot(projection=themap)
+        # ax = plt.plot()
+        im = themap.plot()
+        # Prevent the image from being re-scaled while overplotting.
+        ax.set_autoscale_on(False)
+        for i in range(arInfo["ar_num"]):
+            theAR_coord = arInfo["ar_coords"][i]
+            theRotated_coord = solar_rotate_coordinate(theAR_coord, time=t)
+            if np.isnan(theRotated_coord.Tx.arcsec):
+                theRotated_coord = theAR_coord
+            ax.plot_coord(theRotated_coord, 'x', label=i)
+            thebl = SkyCoord(theRotated_coord.Tx-(arInfo["ar_widths"][i]/2)*u.arcsec,
+                           theRotated_coord.Ty-(arInfo["ar_heights"][i]/2)*u.arcsec,
+                           frame=themap.coordinate_frame)
+            themap.draw_quadrangle(thebl,width=arInfo["ar_widths"][i]*u.arcsec,height=arInfo["ar_heights"][i]*u.arcsec)
+            #ax.scatter_coord(theRotated_coord.Tx.arcsec,theRotated_coord.Ty.arcsec)
+
+        # Set title.
+        if t < cmeTstart:
+            ax.set_title(timeStrForFig)
+        else:
+            ax.set_title("{} CME".format(timeStrForFig))
+        plt.legend()
+        # plt.savefig(fileName)
+        #plt.show()
+        plt.savefig("figure/cme/{}.png".format(idx))
+
+    # ims = []
+    fig = plt.figure()
     tstart = cmeTstart - datetime.timedelta(minutes=time_earlier1)
     tend = cmeTstart - datetime.timedelta(minutes=time_earlier2)
     ts = list(pd.date_range(tstart, tend, freq=freq))
+    idx = 0
+    for t in ts:
+        getCmeSunFrame(t, arInfo, idx, observatory=observatory, instrument=instrument, measurement=measurement)
+        # ims.append(im)
+        idx += 1
+    # ani = animation.ArtistAnimation(fig, ims, interval=50, repeat_delay=1000)
+    # plt.show()
+    # ani.save("figure/cme/movie.gif", writer='pillow')
 
-    return None
+    # Writer = animation.writers['ffmpeg']  # 需安装ffmpeg
+    # writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+    # ani.save("figure/cme/movie.mp4", writer=writer)
 
-#人工判断，哪个活动区
-#需要的活动区信息：时间、中心位置、边界的4个坐标
-#需要的CME信息：时间（完全可以根据CME catalog获取）
-#也可以先用HEK的CME数据，根据时间来区分不同的CME
-#之后for 循环取所有的CMEs，并根据标记的cmeARidx，把cmeAR的图片放进1，其他AR的图片放进0
+CEidx=1
+tstart = '2015/07/06 07:23:56'
+tend = '2015/07/08 08:40:29'
+CEresults = getCmes(tstart, tend)
+ARresults,cache = getArs(CEresults,CEidx=CEidx)
+arInfo = deleteSmallARs(ARresults,threshold=50)
+CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend = cache
+getCmeSunWithArIndex(CE_tstart,
+                    arInfo,
+                    time_earlier1=20,
+                    time_earlier2=-20,
+                    freq='min',
+                    observatory="SDO",
+                    instrument="AIA",
+                    measurement="193")
+gif_name = "E:\GithubLocal\SErup\\figure\gif\cmegif{}.gif".format(CEidx)
+pic_path = "E:\GithubLocal\SErup\\figure\cme\\"
+images = os.listdir(pic_path)
+images.sort(key=lambda x: int(x.split('.')[0]))
+frames = [imageio.imread(pic_path + f) for f in images]
+imageio.mimwrite(gif_name, frames, 'GIF', duration=0.5)
 
-#list：CE_starttimes  CE_starttimes[i]对应于下面列表中的AR_infos[i]
-#list: AR_infos   AR_infos[i][j] = (AR_st,AR_et,AR_x,AR_y,AR_t,AR_width,AR_height,AR_scale)
+import shutil
+shutil.rmtree(pic_path)
+os.mkdir(pic_path)
+# 人工判断，哪个活动区
+# 需要的活动区信息：时间、中心位置、边界的4个坐标
+# 需要的CME信息：时间（完全可以根据CME catalog获取）
+# 也可以先用HEK的CME数据，根据时间来区分不同的CME
+# 之后for 循环取所有的CMEs，并根据标记的cmeARidx，把cmeAR的图片放进1，其他AR的图片放进0
+
+# list：CE_starttimes  CE_starttimes[i]对应于下面列表中的AR_infos[i]
+# list: AR_infos   AR_infos[i][j] = (AR_st,AR_et,AR_x,AR_y,AR_t,AR_width,AR_height,AR_scale)
+
+'''
+问题是这个gif分辨率很低，最好能弄高清一点，方便识别CME爆发源
+或者直接存成视频是不是高清一点？
+如果还是判断不了可能还要结合lasco去观测。
+或者直接上CME catalog找比较大的CME，因为比较小的cme可能很难判断源区。
+'''
