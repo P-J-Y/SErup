@@ -67,7 +67,6 @@ def getArs(CEresults,CEidx = 0,time_earlier1=30,time_earlier2=0,event_type='AR',
     AR_tend = CE_tstart - datetime.timedelta(minutes=time_earlier2)
     ARresult = Fido.search(a.Time(AR_tstart, AR_tend), a.hek.EventType(event_type))
     cache = (CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend)
-    ARresults = []
     return ARresult,cache
 '''
 tstart = '2015/05/01 07:23:56'
@@ -255,7 +254,7 @@ def getFrames(AR_coord,tstart,tend,width=100,height=100,iscme=0,freq='min',ar_id
                  idx=ar_idx)
 
 
-
+'''
 tstart = '2017/07/01 07:23:56'
 tend = '2017/07/10 08:40:29'
 CEresults = getCmes(tstart, tend)
@@ -287,6 +286,63 @@ getFrames(AR_coords[ar_idx],
           iscme=0,
           freq='1min',
           ar_idx=ar_idx)
+'''
 
-def getCmeSunWithArIndex(cme_tstart,cme_tend,ar_scales,ar_xs,ar_ys):
+def deleteSmallARs(ARresults,threshold=100,fmt = "%Y-%m-%dT%H:%M:%S"):
+    '''
+
+    :param ARresults:
+    :param cache: from gerArs
+    :param threshold:
+    :return:
+    '''
+
+    #把scale足够大的提取出来
+    #如果 |x+-width/2|>900  width = 2*min(|900+-x|)
+    AR_LL_xs = ARresults['hek']['boundbox_c1ll']
+    AR_LL_ys = ARresults['hek']['boundbox_c2ll']
+    AR_UR_xs = ARresults['hek']['boundbox_c1ur']
+    AR_UR_ys = ARresults['hek']['boundbox_c2ur']
+    AR_widths = AR_UR_xs - AR_LL_xs
+    AR_heights = AR_UR_ys - AR_LL_ys
+    AR_scales = np.max([AR_widths,AR_heights],axis=0)
+    bigArIdx = AR_scales>=threshold
+    AR_tstarts = np.array([datetime.datetime.strptime(ARresults['hek']['event_starttime'][i], fmt) for i in range(len(AR_LL_xs))])
+    AR_tends = np.array([datetime.datetime.strptime(ARresults['hek']['event_endtime'][i], fmt) for i in range(len(AR_LL_xs))])
+    AR_ts = AR_tstarts+np.divide(np.subtract(AR_tends,AR_tstarts),2)
+    arInfo = {"ar_xs":ARresults['hek']['event_coord1'][bigArIdx],
+              "ar_ys":ARresults['hek']['event_coord1'][bigArIdx],
+              "ar_tstarts":AR_tstarts[bigArIdx],
+              "ar_tends":AR_tends[bigArIdx],
+              "ar_widths":AR_widths[bigArIdx],
+              "ar_heights":AR_heights[bigArIdx],
+              "ar_scales":AR_scales[bigArIdx],
+              "ar_ts":AR_ts[bigArIdx]
+              }
+    return arInfo
+tstart = '2017/07/01 07:23:56'
+tend = '2017/07/10 08:40:29'
+CEresults = getCmes(tstart, tend)
+ARresults,cache = getArs(CEresults,CEidx=0)
+arInfo = deleteSmallARs(ARresults)
+CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend = cache
+
+#ARs  活动区列表的列表,包含每个CME（按照一定的序号）所对应的大活动区
+#下面的函数先实现一个CME的获取和标记
+def getCmeSunWithArIndex(cmeTstart,arInfo,time_earlier1=20,time_earlier2=-20,freq='min'):#cme时间：根据CME catalog；ar信息：根据HEK搜索出比较大的,最好是直接输入AR的完整信息；输出：gif+活动区信息列表
+
+    #记得在CME爆发时刻打个记号（图上标记一下，这样判断的时候才能判断出是哪个CME，免得搞错时间
+    tstart = cmeTstart - datetime.timedelta(minutes=time_earlier1)
+    tend = cmeTstart - datetime.timedelta(minutes=time_earlier2)
+    ts = list(pd.date_range(tstart, tend, freq=freq))
+
     return None
+
+#人工判断，哪个活动区
+#需要的活动区信息：时间、中心位置、边界的4个坐标
+#需要的CME信息：时间（完全可以根据CME catalog获取）
+#也可以先用HEK的CME数据，根据时间来区分不同的CME
+#之后for 循环取所有的CMEs，并根据标记的cmeARidx，把cmeAR的图片放进1，其他AR的图片放进0
+
+#list：CE_starttimes  CE_starttimes[i]对应于下面列表中的AR_infos[i]
+#list: AR_infos   AR_infos[i][j] = (AR_st,AR_et,AR_x,AR_y,AR_t,AR_width,AR_height,AR_scale)
