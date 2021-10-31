@@ -331,7 +331,7 @@ def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
     AR_scales = np.min([AR_widths, AR_heights], axis=0)
     AR_thresholds = [thresholds[AR_coordsyss[i]] for i in range(len(AR_coordsyss))]
     AR_thresholds = np.multiply(AR_thresholds,AR_coordunits)
-    bigArIdx = np.array(AR_scales) >= np.array(AR_thresholds)
+    bigArIdx = (np.array(AR_scales) >= np.array(AR_thresholds)) & (np.array(ARresults['hek']['frm_identifier']) == "HMI Active Region Patch")
     AR_tstarts = np.array(
         [datetime.datetime.strptime(ARresults['hek']['event_starttime'][i], fmt) for i in range(len(AR_LL_xs))])
     AR_tends = np.array(
@@ -385,6 +385,7 @@ CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend = cache'''
 # ARs  活动区列表的列表,包含每个CME（按照一定的序号）所对应的大活动区
 # 下面的函数先实现一个CME的获取和标记
 def getCmeSunWithArIndex(cmeTstart,
+                         cmeCoord,
                          arInfo,
                          time_earlier1=20,
                          time_earlier2=-20,
@@ -406,7 +407,7 @@ def getCmeSunWithArIndex(cmeTstart,
         fileName = "figure/cme/aia_{}_{}.png".format(measurement, timeStrForFig)
         return themap, fileName
 
-    def getCmeSunFrame(t, arInfo, idx, observatory=observatory, instrument=instrument, measurement=measurement):
+    def getCmeSunFrame(t, arInfo, idx, cmeCoord, observatory=observatory, instrument=instrument, measurement=measurement):
         themap, fileName = getMap(t, observatory=observatory, instrument=instrument, measurement=measurement)
         timeStrForFig = t.strftime("%Y-%m-%d %H:%M:%S")
         # fig = plt.figure()
@@ -445,6 +446,7 @@ def getCmeSunWithArIndex(cmeTstart,
             ax.set_title(timeStrForFig)
         else:
             ax.set_title("{} CME".format(timeStrForFig))
+        ax.plot_coord(cmeCoord, "r+", label="cme")
         plt.legend()
         # plt.savefig(fileName)
         #plt.show()
@@ -457,7 +459,7 @@ def getCmeSunWithArIndex(cmeTstart,
     ts = list(pd.date_range(tstart, tend, freq=freq))
     idx = 0
     for t in ts:
-        getCmeSunFrame(t, arInfo, idx, observatory=observatory, instrument=instrument, measurement=measurement)
+        getCmeSunFrame(t, arInfo, idx, cmeCoord, observatory=observatory, instrument=instrument, measurement=measurement)
         # ims.append(im)
         idx += 1
     # ani = animation.ArtistAnimation(fig, ims, interval=50, repeat_delay=1000)
@@ -469,21 +471,54 @@ def getCmeSunWithArIndex(cmeTstart,
     # ani.save("figure/cme/movie.mp4", writer=writer)
 
 CEidx=1
-tstart = "2013/08/06 02:47:05"
-tend = "2013/08/06 02:49:05"
+tstart = "2015/10/22 02:00:00"
+tend = "2015/10/22 04:00:00"
+CeCoordStr = ("S13","W37")
+observatory="SDO"
+instrument="AIA"
+#measurement="magnetogram"
+measurement="193"
+#数据集从https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/ 这个网站获取。选择给出了源区坐标的CME。 然后画出这个CME之前1.5-2小时的图，就能看到源区相应位置的喷流
+#选择比较大的？ 用源区坐标和AR匹配
+
+
+def getCmeCoord(coordStr):
+    coord2Str,coord1Str = coordStr
+    if coord2Str[0]=='S':
+        coord2 = -float(coord2Str[1:])
+    elif coord2Str[0]=='N':
+        coord2 = float(coord2Str[1:])
+
+    if coord1Str[0]=='E':
+        coord1 = -float(coord1Str[1:])
+    elif coord1Str[0]=='W':
+        coord1 = float(coord1Str[1:])
+
+    coord = SkyCoord(coord1*u.deg,
+                    coord2*u.deg,
+                    frame="heliographic_stonyhurst",
+                    #obstime=arInfo["ar_ts"][i],
+                    #observer="earth"
+                    )
+    return coord
+
+CE_coord = getCmeCoord(CeCoordStr)
+
 CEresults = getCmes(tstart, tend)
 ARresults,cache = getArs(CEresults,CEidx=CEidx,time_earlier1=60,time_earlier2=20)
 arInfo = deleteSmallARs(ARresults,threshold=50)
 CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend = cache
+
 getCmeSunWithArIndex(CE_tstart,
+                     CE_coord,
                     arInfo,
-                    time_earlier1=60,
+                    time_earlier1=120,
                     time_earlier2=-20,
                     freq='1min',
-                    observatory="SDO",
-                    instrument="HMI",
-                    measurement="magnetogram")
-gif_name = "E:\GithubLocal\SErup\\figure\gif\cmemaggif{}.gif".format(CEidx)
+                    observatory=observatory,
+                    instrument=instrument,
+                    measurement=measurement)
+gif_name = "E:\GithubLocal\SErup\\figure\gif\cme{}gif{}.gif".format(measurement,CEidx)
 pic_path = "E:\GithubLocal\SErup\\figure\cme\\"
 images = os.listdir(pic_path)
 images.sort(key=lambda x: int(x.split('.')[0]))
