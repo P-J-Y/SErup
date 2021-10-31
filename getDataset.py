@@ -316,28 +316,37 @@ def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
 
     # 把scale足够大的提取出来
     # 如果 |x+-width/2|>900  width = 2*min(|900+-x|)
-    AR_LL_xs = ARresults['hek']['boundbox_c1ll']
-    AR_LL_ys = ARresults['hek']['boundbox_c2ll']
-    AR_UR_xs = ARresults['hek']['boundbox_c1ur']
-    AR_UR_ys = ARresults['hek']['boundbox_c2ur']
+    AR_coordsyss = ARresults['hek']['event_coordsys']
+    coordunits = {"UTC-HPC-TOPO":u.arcsec,"UTC-HGS-TOPO":u.deg}
+    thresholds = {"UTC-HPC-TOPO":100,"UTC-HGS-TOPO":6}
+    AR_coordunits = [coordunits[AR_coordsyss[i]] for i in range(len(AR_coordsyss))]
+    AR_xs = np.multiply(ARresults['hek']['event_coord1'],AR_coordunits)
+    AR_ys = np.multiply(ARresults['hek']['event_coord2'],AR_coordunits)
+    AR_LL_xs = np.multiply(ARresults['hek']['boundbox_c1ll'],AR_coordunits)
+    AR_LL_ys = np.multiply(ARresults['hek']['boundbox_c2ll'],AR_coordunits)
+    AR_UR_xs = np.multiply(ARresults['hek']['boundbox_c1ur'],AR_coordunits)
+    AR_UR_ys = np.multiply(ARresults['hek']['boundbox_c2ur'],AR_coordunits)
     AR_widths = AR_UR_xs - AR_LL_xs
     AR_heights = AR_UR_ys - AR_LL_ys
     AR_scales = np.max([AR_widths, AR_heights], axis=0)
-    bigArIdx = AR_scales >= threshold
+    AR_thresholds = [thresholds[AR_coordsyss[i]] for i in range(len(AR_coordsyss))]
+    AR_thresholds = np.multiply(AR_thresholds,AR_coordunits)
+    bigArIdx = np.array(AR_scales) >= np.array(AR_thresholds)
     AR_tstarts = np.array(
         [datetime.datetime.strptime(ARresults['hek']['event_starttime'][i], fmt) for i in range(len(AR_LL_xs))])
     AR_tends = np.array(
         [datetime.datetime.strptime(ARresults['hek']['event_endtime'][i], fmt) for i in range(len(AR_LL_xs))])
     AR_ts = AR_tstarts + np.divide(np.subtract(AR_tends, AR_tstarts), 2)
-    arInfo = {"ar_xs": ARresults['hek']['event_coord1'][bigArIdx],
-              "ar_ys": ARresults['hek']['event_coord1'][bigArIdx],
+    arInfo = {"ar_xs": AR_xs[bigArIdx],
+              "ar_ys": AR_ys[bigArIdx],
               "ar_tstarts": AR_tstarts[bigArIdx],
               "ar_tends": AR_tends[bigArIdx],
               "ar_widths": AR_widths[bigArIdx],
               "ar_heights": AR_heights[bigArIdx],
               "ar_scales": AR_scales[bigArIdx],
               "ar_ts": AR_ts[bigArIdx],
-              "ar_num": sum(bigArIdx)
+              "ar_num": sum(bigArIdx),
+              "ar_coordsyss":AR_coordsyss
               }
     hv = HelioviewerClient()
     #cframes = []
@@ -347,11 +356,17 @@ def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
         #cmap = Map(cfile)
         #cframe = cmap.coordinate_frame
         #cframes.append(cframe)
-        theAR_coord = SkyCoord(arInfo["ar_xs"][i]*u.arcsec, arInfo["ar_ys"][i] * u.arcsec,
-                                frame=frames.Helioprojective,
-                                obstime=arInfo["ar_ts"][i],
-                                observer = "earth"
-                               )
+        if arInfo["ar_coordsyss"][i] == "UTC-HPC-TOPO":
+            theAR_coord = SkyCoord(arInfo["ar_xs"][i],arInfo["ar_ys"][i],
+                                   frame=frames.Helioprojective,
+                                   obstime=arInfo["ar_ts"][i],
+                                   observer = "earth",
+                                   )
+        elif arInfo["ar_coordsyss"][i] == "UTC-HGS-TOPO":
+            theAR_coord = SkyCoord(arInfo["ar_xs"][i], arInfo["ar_ys"][i],
+                                   frame="heliographic_stonyhurst",
+                                   obstime=arInfo["ar_ts"][i],
+                                   observer="earth")
         #theAR_coord = SkyCoord(arInfo["ar_xs"][i] * u.arcsec, arInfo["ar_ys"][i] * u.arcsec, frame=cframe)
         AR_coords.append(theAR_coord)
     #arInfo["ar_cframes"] = cframes
@@ -414,10 +429,15 @@ def getCmeSunWithArIndex(cmeTstart,
 
             #transRotated_coord = theRotated_coord.transform_to(themap.coordinate_frame)
             ax.plot_coord(theRotated_coord, 'x', label=i)
-            thebl = SkyCoord(theRotated_coord.Tx-(arInfo["ar_widths"][i]/2)*u.arcsec,
-                           theRotated_coord.Ty-(arInfo["ar_heights"][i]/2)*u.arcsec,
-                           frame=themap.coordinate_frame)
-            themap.draw_quadrangle(thebl,width=arInfo["ar_widths"][i]*u.arcsec,height=arInfo["ar_heights"][i]*u.arcsec)
+            if arInfo["ar_coordsyss"][i]=="UTC-HPC-TOPO":
+                thebl = SkyCoord(theRotated_coord.transform_to(theAR_coord.frame).Tx-arInfo["ar_widths"][i]/2,
+                            theRotated_coord.transform_to(theAR_coord.frame).Ty-arInfo["ar_heights"][i]/2,
+                            frame=theAR_coord.frame)
+            elif arInfo["ar_coordsyss"][i]=="UTC-HGS-TOPO":
+                thebl = SkyCoord(theRotated_coord.transform_to(theAR_coord.frame).lon - arInfo["ar_widths"][i] / 2,
+                            theRotated_coord.transform_to(theAR_coord.frame).lat - arInfo["ar_heights"][i] / 2,
+                            frame=theAR_coord.frame)
+            themap.draw_quadrangle(thebl,width=arInfo["ar_widths"][i],height=arInfo["ar_heights"][i])
             #ax.scatter_coord(theRotated_coord.Tx.arcsec,theRotated_coord.Ty.arcsec)
 
         # Set title.
