@@ -328,7 +328,7 @@ def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
     AR_UR_ys = np.multiply(ARresults['hek']['boundbox_c2ur'],AR_coordunits)
     AR_widths = AR_UR_xs - AR_LL_xs
     AR_heights = AR_UR_ys - AR_LL_ys
-    AR_scales = np.max([AR_widths, AR_heights], axis=0)
+    AR_scales = np.min([AR_widths, AR_heights], axis=0)
     AR_thresholds = [thresholds[AR_coordsyss[i]] for i in range(len(AR_coordsyss))]
     AR_thresholds = np.multiply(AR_thresholds,AR_coordunits)
     bigArIdx = np.array(AR_scales) >= np.array(AR_thresholds)
@@ -346,7 +346,7 @@ def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
               "ar_scales": AR_scales[bigArIdx],
               "ar_ts": AR_ts[bigArIdx],
               "ar_num": sum(bigArIdx),
-              "ar_coordsyss":AR_coordsyss
+              "ar_coordsyss":AR_coordsyss[bigArIdx]
               }
     hv = HelioviewerClient()
     #cframes = []
@@ -360,7 +360,7 @@ def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
             theAR_coord = SkyCoord(arInfo["ar_xs"][i],arInfo["ar_ys"][i],
                                    frame=frames.Helioprojective,
                                    obstime=arInfo["ar_ts"][i],
-                                   observer = "earth",
+                                   observer="earth",
                                    )
         elif arInfo["ar_coordsyss"][i] == "UTC-HGS-TOPO":
             theAR_coord = SkyCoord(arInfo["ar_xs"][i], arInfo["ar_ys"][i],
@@ -432,7 +432,7 @@ def getCmeSunWithArIndex(cmeTstart,
             if arInfo["ar_coordsyss"][i]=="UTC-HPC-TOPO":
                 thebl = SkyCoord(theRotated_coord.transform_to(theAR_coord.frame).Tx-arInfo["ar_widths"][i]/2,
                             theRotated_coord.transform_to(theAR_coord.frame).Ty-arInfo["ar_heights"][i]/2,
-                            frame=theAR_coord.frame)
+                            frame=theAR_coord.frame).transform_to(themap.coordinate_frame)
             elif arInfo["ar_coordsyss"][i]=="UTC-HGS-TOPO":
                 thebl = SkyCoord(theRotated_coord.transform_to(theAR_coord.frame).lon - arInfo["ar_widths"][i] / 2,
                             theRotated_coord.transform_to(theAR_coord.frame).lat - arInfo["ar_heights"][i] / 2,
@@ -468,7 +468,7 @@ def getCmeSunWithArIndex(cmeTstart,
     # writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
     # ani.save("figure/cme/movie.mp4", writer=writer)
 
-CEidx=0
+CEidx=1
 tstart = "2013/08/06 02:47:05"
 tend = "2013/08/06 02:49:05"
 CEresults = getCmes(tstart, tend)
@@ -483,7 +483,7 @@ getCmeSunWithArIndex(CE_tstart,
                     observatory="SDO",
                     instrument="HMI",
                     measurement="magnetogram")
-gif_name = "E:\GithubLocal\SErup\\figure\gif\cmehmigif{}.gif".format(CEidx)
+gif_name = "E:\GithubLocal\SErup\\figure\gif\cmemaggif{}.gif".format(CEidx)
 pic_path = "E:\GithubLocal\SErup\\figure\cme\\"
 images = os.listdir(pic_path)
 images.sort(key=lambda x: int(x.split('.')[0]))
