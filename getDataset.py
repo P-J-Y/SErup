@@ -21,6 +21,7 @@ from sunpy.physics.differential_rotation import diff_rot, solar_rotate_coordinat
 import pandas as pd
 import imageio
 import os
+import sunpy.coordinates.frames as f
 
 
 # 1、活动区的时刻现在用的初始时刻，实际上应该考虑从初始到end ok
@@ -339,16 +340,21 @@ def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
               "ar_num": sum(bigArIdx)
               }
     hv = HelioviewerClient()
-    cframes = []
+    #cframes = []
     AR_coords = []
     for i in range(arInfo["ar_num"]):
-        cfile = hv.download_jp2(arInfo["ar_ts"][i], observatory="SDO", instrument="HMI", measurement="magnetogram")
-        cmap = Map(cfile)
-        cframe = cmap.coordinate_frame
-        cframes.append(cframe)
-        theAR_coord = SkyCoord(arInfo["ar_xs"][i] * u.arcsec, arInfo["ar_ys"][i] * u.arcsec, frame=cframe)
+        #cfile = hv.download_jp2(arInfo["ar_ts"][i], observatory="SDO", instrument="HMI", measurement="magnetogram")
+        #cmap = Map(cfile)
+        #cframe = cmap.coordinate_frame
+        #cframes.append(cframe)
+        theAR_coord = SkyCoord(arInfo["ar_xs"][i]*u.arcsec, arInfo["ar_ys"][i] * u.arcsec,
+                                frame=frames.Helioprojective,
+                                obstime=arInfo["ar_ts"][i],
+                                observer = "earth"
+                               )
+        #theAR_coord = SkyCoord(arInfo["ar_xs"][i] * u.arcsec, arInfo["ar_ys"][i] * u.arcsec, frame=cframe)
         AR_coords.append(theAR_coord)
-    arInfo["ar_cframes"] = cframes
+    #arInfo["ar_cframes"] = cframes
     arInfo["ar_coords"] = AR_coords
     return arInfo
 
@@ -396,10 +402,17 @@ def getCmeSunWithArIndex(cmeTstart,
         # Prevent the image from being re-scaled while overplotting.
         ax.set_autoscale_on(False)
         for i in range(arInfo["ar_num"]):
+            if t>arInfo["ar_tends"][i] or t<arInfo["ar_tstarts"][i]:
+                continue
             theAR_coord = arInfo["ar_coords"][i]
-            theRotated_coord = solar_rotate_coordinate(theAR_coord, time=t)
+            transAR_coord = theAR_coord.transform_to(themap.coordinate_frame)
+            #transAR_coord = theAR_coord.transform_to(frames.Helioprojective)
+            theRotated_coord = solar_rotate_coordinate(transAR_coord, time=t)
             if np.isnan(theRotated_coord.Tx.arcsec):
-                theRotated_coord = theAR_coord
+                #theRotated_coord = theAR_coord
+                continue
+
+            #transRotated_coord = theRotated_coord.transform_to(themap.coordinate_frame)
             ax.plot_coord(theRotated_coord, 'x', label=i)
             thebl = SkyCoord(theRotated_coord.Tx-(arInfo["ar_widths"][i]/2)*u.arcsec,
                            theRotated_coord.Ty-(arInfo["ar_heights"][i]/2)*u.arcsec,
@@ -415,7 +428,7 @@ def getCmeSunWithArIndex(cmeTstart,
         plt.legend()
         # plt.savefig(fileName)
         #plt.show()
-        plt.savefig("figure/cme/{}.png".format(idx))
+        plt.savefig("figure/cme/{}.png".format(idx),dpi=600)
 
     # ims = []
     fig = plt.figure()
@@ -435,22 +448,22 @@ def getCmeSunWithArIndex(cmeTstart,
     # writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
     # ani.save("figure/cme/movie.mp4", writer=writer)
 
-CEidx=1
-tstart = '2015/07/06 07:23:56'
-tend = '2015/07/08 08:40:29'
+CEidx=0
+tstart = "2013/08/06 02:47:05"
+tend = "2013/08/06 02:49:05"
 CEresults = getCmes(tstart, tend)
-ARresults,cache = getArs(CEresults,CEidx=CEidx)
+ARresults,cache = getArs(CEresults,CEidx=CEidx,time_earlier1=60,time_earlier2=20)
 arInfo = deleteSmallARs(ARresults,threshold=50)
 CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend = cache
 getCmeSunWithArIndex(CE_tstart,
                     arInfo,
-                    time_earlier1=20,
+                    time_earlier1=60,
                     time_earlier2=-20,
-                    freq='min',
+                    freq='1min',
                     observatory="SDO",
-                    instrument="AIA",
-                    measurement="193")
-gif_name = "E:\GithubLocal\SErup\\figure\gif\cmegif{}.gif".format(CEidx)
+                    instrument="HMI",
+                    measurement="magnetogram")
+gif_name = "E:\GithubLocal\SErup\\figure\gif\cmehmigif{}.gif".format(CEidx)
 pic_path = "E:\GithubLocal\SErup\\figure\cme\\"
 images = os.listdir(pic_path)
 images.sort(key=lambda x: int(x.split('.')[0]))
