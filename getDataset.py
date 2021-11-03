@@ -22,7 +22,9 @@ import pandas as pd
 import imageio
 import os
 import json
+import cv2
 import sunpy.coordinates.frames as f
+from ffmpy3 import FFmpeg
 
 
 # 1、活动区的时刻现在用的初始时刻，实际上应该考虑从初始到end ok
@@ -338,7 +340,7 @@ def deleteSmallARs(ARresults, threshold=(100,6), fmt="%Y-%m-%dT%H:%M:%S"):
     AR_thresholds = [thresholds[AR_coordsyss[i]] for i in range(len(AR_coordsyss))]
     AR_thresholds = np.multiply(AR_thresholds,AR_coordunits)
     bigArIdx = (np.array(AR_scales) >= np.array(AR_thresholds)) & (np.array(ARresults['hek']['frm_identifier']) == "HMI Active Region Patch")
-    assert np.sum(bigArIdx)!=0,"there are only small ARs during this period, choose another event or choose a smaller threshold"
+    assert np.sum(bigArIdx)!=0,"there are only small ARs during this period, choose another event or choose a smaller threshold 没有合适的活动区，换下一个CME，别浪费时间"
     AR_tstarts = np.array(
         [datetime.datetime.strptime(ARresults['hek']['event_starttime'][i], fmt) for i in range(len(AR_LL_xs))])
     AR_tends = np.array(
@@ -476,27 +478,6 @@ def getCmeSunWithArIndex(cmeTstart,
     # Writer = animation.writers['ffmpeg']  # 需安装ffmpeg
     # writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
     # ani.save("figure/cme/movie.mp4", writer=writer)
-cmelistpath='data/cmelist.json'
-file = open(cmelistpath,'r',encoding='utf-8')
-cmelist = json.load(file)
-CEidx=0
-#tstart = "2015/10/22 02:00:00"
-fmt = "%Y-%m-%dT%H:%MZ" #cme数据的时间格式
-#tstart = datetime.datetime.strptime("2021-04-20 00:12",fmt)
-#tend = "2015/10/22 04:00:00"
-#CeCoordStr = "S24E23"
-
-observatory="SDO"
-instrument="AIA"
-#measurement="magnetogram"
-measurement="193"
-ar_threshold=(100,6)
-#数据集从https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/ 这个网站获取。选择给出了源区坐标的CME。 然后画出这个CME之前1.5-2小时的图，就能看到源区相应位置的喷流
-#选择比较大的？ 用源区坐标和AR匹配
-theCmeInfo = cmelist[CEidx]
-tstart = datetime.datetime.strptime(theCmeInfo["startTime"],fmt)
-CeCoordStr = theCmeInfo["sourceLocation"]
-
 
 def breakCoordStr(coordStr):
     coord2Str = coordStr[0:3]
@@ -532,6 +513,31 @@ def getCmeCoord(coordStrs):
                     )
     return coord
 
+
+cmelistpath='data/cmelist.json'
+file = open(cmelistpath,'r',encoding='utf-8')
+cmelist = json.load(file)
+CEidx=2
+#tstart = "2015/10/22 02:00:00"
+fmt = "%Y-%m-%dT%H:%MZ" #cme数据的时间格式
+#tstart = datetime.datetime.strptime("2021-04-20 00:12",fmt)
+#tend = "2015/10/22 04:00:00"
+#CeCoordStr = "S24E23"
+
+observatory="SDO"
+instrument="AIA"
+#measurement="magnetogram"
+measurement="193"
+ar_threshold=(100,6)
+#数据集从https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/ 这个网站获取。选择给出了源区坐标的CME。 然后画出这个CME之前1.5-2小时的图，就能看到源区相应位置的喷流
+#选择比较大的？ 用源区坐标和AR匹配
+theCmeInfo = cmelist[CEidx]
+tstart = datetime.datetime.strptime(theCmeInfo["startTime"],fmt)
+CeCoordStr = theCmeInfo["sourceLocation"]
+
+
+
+
 CE_coord = getCmeCoord(breakCoordStr(CeCoordStr))
 
 #CEresults = getCmes(tstart, tend)
@@ -542,22 +548,47 @@ CE_tstart, AR_tstart,AR_tend = cache
 getCmeSunWithArIndex(CE_tstart,
                      CE_coord,
                     arInfo,
-                    time_earlier1=120,
+                    time_earlier1=90,
                     time_earlier2=-20,
-                    freq='1min',
+                    freq='2min',
                     observatory=observatory,
                     instrument=instrument,
                     measurement=measurement)
-gif_name = "E:\GithubLocal\SErup\\figure\gif\cme{}gif{}.gif".format(measurement,CEidx)
+
+#gif_name = "E:\GithubLocal\SErup\\figure\gif\cme{}gif{}.gif".format(measurement,CEidx)
+film_name = "E:\GithubLocal\SErup\\figure\\film\cme{}film{}.mp4".format(measurement,CEidx)
+#film_name = "E:\GithubLocal\SErup\\figure\\film\\test.mp4"
 pic_path = "E:\GithubLocal\SErup\\figure\cme\\"
+'''
+可以用cv2来合成视频，好像会快一点，但是会限制必须输入图片大小，不太方便（还需要注意视频格式必须和编码器匹配）
 images = os.listdir(pic_path)
 images.sort(key=lambda x: int(x.split('.')[0]))
-frames = [imageio.imread(pic_path + f) for f in images]
-imageio.mimwrite(gif_name, frames, 'GIF', duration=0.5)
+fps = 4          # 视频帧率
+size = (3840, 2880) # 需要转为视频的图片的尺寸
+videoWriter = cv2.VideoWriter(film_name,
+                              #-1,
+                              cv2.VideoWriter_fourcc(*'DIVX'),
+                              fps,
+                              size,isColor=True)
+
+for f in images:
+    frame = cv2.imread(pic_path + f)
+    videoWriter.write(frame)
+videoWriter.release()
+cv2.destroyAllWindows()
+#imageio.mimwrite(gif_name, frames, 'GIF', duration=0.5)
+'''
+
+ffin = FFmpeg(inputs={pic_path+'%d.png': '-y -r 4'},
+              outputs={film_name: None})
+#print(ffin.cmd)
+ffin.run()
+
 
 import shutil
 shutil.rmtree(pic_path)
 os.mkdir(pic_path)
+
 # 人工判断，哪个活动区
 # 需要的活动区信息：时间、中心位置、边界的4个坐标
 # 需要的CME信息：时间（完全可以根据CME catalog获取）
