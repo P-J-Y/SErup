@@ -21,6 +21,7 @@ from sunpy.physics.differential_rotation import diff_rot, solar_rotate_coordinat
 import pandas as pd
 import imageio
 import os
+import json
 import sunpy.coordinates.frames as f
 
 
@@ -53,7 +54,7 @@ CEresults = getCmes(tstart, tend)
 '''
 
 
-def getArs(CEresults, CEidx=0, time_earlier1=30, time_earlier2=0, event_type='AR', fmt="%Y-%m-%dT%H:%M:%S"):
+def getArs(CE_tstart, time_earlier1=30, time_earlier2=0, event_type='AR'):
     '''
     
     :param CEresults: result from getCmes 
@@ -63,17 +64,18 @@ def getArs(CEresults, CEidx=0, time_earlier1=30, time_earlier2=0, event_type='AR
     :return: ARresult-a list contain all the ARs during time_earlier1 to time_earlier2 before the CME
             cache-CME info
     '''
-    assert CEidx < len(CEresults['hek']['event_endtime'])
-
-    CE_x = CEresults['hek']['event_coord1'][CEidx]
-    CE_y = CEresults['hek']['event_coord2'][CEidx]
-    CE_tstart = datetime.datetime.strptime(CEresults['hek']['event_starttime'][CEidx], fmt)
-    CE_tend = datetime.datetime.strptime(CEresults['hek']['event_endtime'][CEidx], fmt)
+    #assert CEidx < len(CEresults['hek']['event_endtime'])
+    #fmt = "%Y-%m-%dT%H:%M:%S"
+    #CE_x = CEresults['hek']['event_coord1'][CEidx]
+    #CE_y = CEresults['hek']['event_coord2'][CEidx]
+    #CE_tstart = datetime.datetime.strptime(CEresults['hek']['event_starttime'][CEidx], fmt)
+    #CE_tend = datetime.datetime.strptime(CEresults['hek']['event_endtime'][CEidx], fmt)
 
     AR_tstart = CE_tstart - datetime.timedelta(minutes=time_earlier1)
     AR_tend = CE_tstart - datetime.timedelta(minutes=time_earlier2)
     ARresult = Fido.search(a.Time(AR_tstart, AR_tend), a.hek.EventType(event_type))
-    cache = (CE_x, CE_y, CE_tstart, CE_tend, AR_tstart, AR_tend)
+    #cache = (CE_x, CE_y, CE_tstart, CE_tend, AR_tstart, AR_tend)
+    cache = (CE_tstart, AR_tstart, AR_tend)
     return ARresult, cache
 
 
@@ -85,7 +87,7 @@ ARresults,cache = getArs(CEresults)
 '''
 
 
-def getDists(ARresults, cache, fmt="%Y-%m-%dT%H:%M:%S"):
+def getDists(ARresults, CE_x,CE_y, cache, fmt="%Y-%m-%dT%H:%M:%S"):
     '''
     
     :param ARresults: 
@@ -93,8 +95,8 @@ def getDists(ARresults, cache, fmt="%Y-%m-%dT%H:%M:%S"):
     :return: 
     '''
     hv = HelioviewerClient()
-    CE_x, CE_y, CE_tstart, CE_tend, time1, time2 = cache
-    CE_t = CE_tstart + (CE_tend - CE_tstart) / 2
+    CE_tstart, time1, time2 = cache
+    #CE_t = CE_tstart + (CE_tend - CE_tstart) / 2
     AR_tstarts = [datetime.datetime.strptime(i, fmt) for i in ARresults['hek']['event_starttime']]
     AR_tends = [datetime.datetime.strptime(i, fmt) for i in ARresults['hek']['event_endtime']]
     AR_ts = AR_tstarts + np.divide(np.subtract(AR_tends, AR_tstarts), 2)
@@ -109,13 +111,16 @@ def getDists(ARresults, cache, fmt="%Y-%m-%dT%H:%M:%S"):
         cframe = cmap.coordinate_frame
         cframes.append(cframe)
         theAR_coord = SkyCoord(AR_xs[i] * u.arcsec, AR_ys[i] * u.arcsec, frame=cframe)
-        theRotated_coord = solar_rotate_coordinate(theAR_coord, time=CE_t)
+        theRotated_coord = solar_rotate_coordinate(theAR_coord, time=CE_tstart)
         AR_coords.append(theAR_coord)
         dists.append(
             np.sqrt((theRotated_coord.Tx.arcsec - CE_x) ** 2 +
                     (theRotated_coord.Ty.arcsec - CE_y) ** 2)
         )
-    cache = (CE_x, CE_y, CE_tstart, CE_tend, CE_t,
+    #cache = (CE_x, CE_y, CE_tstart, CE_tend, CE_t,
+    #         AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts, AR_coords, cframes,
+    #         time1, time2)
+    cache = (CE_x, CE_y, CE_tstart,
              AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts, AR_coords, cframes,
              time1, time2)
     return dists, cache
@@ -276,7 +281,7 @@ tend = '2017/07/10 08:40:29'
 CEresults = getCmes(tstart, tend)
 ARresults,cache = getArs(CEresults,CEidx=0)
 dists,cache = getDists(ARresults,cache)
-CE_x, CE_y, CE_tstart, CE_tend, CE_t, \
+CE_x, CE_y, CE_tstart, \
             AR_xs, AR_ys, AR_tstarts, \
             AR_tends, AR_ts, AR_coords, cmaps, \
             time1,time2 = cache
@@ -305,12 +310,13 @@ getFrames(AR_coords[ar_idx],
 '''
 
 
-def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
+def deleteSmallARs(ARresults, threshold=(100,6), fmt="%Y-%m-%dT%H:%M:%S"):
     '''
 
     :param ARresults:
     :param cache: from gerArs
-    :param threshold:
+    :param threshold: (100,6) 100arcsec for projection 6deg for HGS
+    :param fmt: 这个是HEK给出的ARresults中时间的格式
     :return:
     '''
 
@@ -318,7 +324,7 @@ def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
     # 如果 |x+-width/2|>900  width = 2*min(|900+-x|)
     AR_coordsyss = ARresults['hek']['event_coordsys']
     coordunits = {"UTC-HPC-TOPO":u.arcsec,"UTC-HGS-TOPO":u.deg}
-    thresholds = {"UTC-HPC-TOPO":100,"UTC-HGS-TOPO":6}
+    thresholds = {"UTC-HPC-TOPO":threshold[0],"UTC-HGS-TOPO":threshold[1]}
     AR_coordunits = [coordunits[AR_coordsyss[i]] for i in range(len(AR_coordsyss))]
     AR_xs = np.multiply(ARresults['hek']['event_coord1'],AR_coordunits)
     AR_ys = np.multiply(ARresults['hek']['event_coord2'],AR_coordunits)
@@ -332,6 +338,7 @@ def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
     AR_thresholds = [thresholds[AR_coordsyss[i]] for i in range(len(AR_coordsyss))]
     AR_thresholds = np.multiply(AR_thresholds,AR_coordunits)
     bigArIdx = (np.array(AR_scales) >= np.array(AR_thresholds)) & (np.array(ARresults['hek']['frm_identifier']) == "HMI Active Region Patch")
+    assert np.sum(bigArIdx)!=0,"there are only small ARs during this period, choose another event or choose a smaller threshold"
     AR_tstarts = np.array(
         [datetime.datetime.strptime(ARresults['hek']['event_starttime'][i], fmt) for i in range(len(AR_LL_xs))])
     AR_tends = np.array(
@@ -348,7 +355,7 @@ def deleteSmallARs(ARresults, threshold=100, fmt="%Y-%m-%dT%H:%M:%S"):
               "ar_num": sum(bigArIdx),
               "ar_coordsyss":AR_coordsyss[bigArIdx]
               }
-    hv = HelioviewerClient()
+    #hv = HelioviewerClient()
     #cframes = []
     AR_coords = []
     for i in range(arInfo["ar_num"]):
@@ -469,30 +476,53 @@ def getCmeSunWithArIndex(cmeTstart,
     # Writer = animation.writers['ffmpeg']  # 需安装ffmpeg
     # writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
     # ani.save("figure/cme/movie.mp4", writer=writer)
+cmelistpath='data/cmelist.json'
+file = open(cmelistpath,'r',encoding='utf-8')
+cmelist = json.load(file)
+CEidx=0
+#tstart = "2015/10/22 02:00:00"
+fmt = "%Y-%m-%dT%H:%MZ" #cme数据的时间格式
+#tstart = datetime.datetime.strptime("2021-04-20 00:12",fmt)
+#tend = "2015/10/22 04:00:00"
+#CeCoordStr = "S24E23"
 
-CEidx=1
-tstart = "2015/10/22 02:00:00"
-tend = "2015/10/22 04:00:00"
-CeCoordStr = ("S13","W37")
 observatory="SDO"
 instrument="AIA"
 #measurement="magnetogram"
 measurement="193"
+ar_threshold=(100,6)
 #数据集从https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/ 这个网站获取。选择给出了源区坐标的CME。 然后画出这个CME之前1.5-2小时的图，就能看到源区相应位置的喷流
 #选择比较大的？ 用源区坐标和AR匹配
+theCmeInfo = cmelist[CEidx]
+tstart = datetime.datetime.strptime(theCmeInfo["startTime"],fmt)
+CeCoordStr = theCmeInfo["sourceLocation"]
 
 
-def getCmeCoord(coordStr):
-    coord2Str,coord1Str = coordStr
+def breakCoordStr(coordStr):
+    coord2Str = coordStr[0:3]
+    coord1Str = coordStr[3:]
+    return (coord2Str,coord1Str)
+
+def getCmeCoord(coordStrs):
+    '''
+    N正S负，W正E负
+    :param coordStrs:
+    :return:
+    '''
+    coord2Str,coord1Str = coordStrs
     if coord2Str[0]=='S':
         coord2 = -float(coord2Str[1:])
     elif coord2Str[0]=='N':
         coord2 = float(coord2Str[1:])
+    else:
+        raise Exception("coord2 not a coord start with S or N!", coord2Str)
 
     if coord1Str[0]=='E':
         coord1 = -float(coord1Str[1:])
     elif coord1Str[0]=='W':
         coord1 = float(coord1Str[1:])
+    else:
+        raise Exception("coord1 not a coord start with E or W!", coord1Str)
 
     coord = SkyCoord(coord1*u.deg,
                     coord2*u.deg,
@@ -502,12 +532,12 @@ def getCmeCoord(coordStr):
                     )
     return coord
 
-CE_coord = getCmeCoord(CeCoordStr)
+CE_coord = getCmeCoord(breakCoordStr(CeCoordStr))
 
-CEresults = getCmes(tstart, tend)
-ARresults,cache = getArs(CEresults,CEidx=CEidx,time_earlier1=60,time_earlier2=20)
-arInfo = deleteSmallARs(ARresults,threshold=50)
-CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend = cache
+#CEresults = getCmes(tstart, tend)
+ARresults,cache = getArs(tstart,time_earlier1=60,time_earlier2=0)
+arInfo = deleteSmallARs(ARresults,threshold=ar_threshold)
+CE_tstart, AR_tstart,AR_tend = cache
 
 getCmeSunWithArIndex(CE_tstart,
                      CE_coord,
