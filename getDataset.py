@@ -506,6 +506,7 @@ def getCmeSunWithArIndex(cmeTstart,
         ax.imshow(thesubmap.data,
                   #           norm=norm,
                   cmap=thesubmap.plot_settings['cmap'])
+        ax.set_title(timeStrForFig)
         plt.savefig("{}{}.png".format(submapFileDir, idx), dpi=600)
 
     # ims = []
@@ -802,7 +803,7 @@ film_t2 = -30
 freq = '1min'
 ar_threshold = (100,6)
 film_path = os.getcwd() + "\\figure\\film\\"
-for CEidx in range(0,len(cmelist),20):
+for CEidx in range(5,len(cmelist),40):
     theCmeInfo = cmelist[CEidx]
 
     try:
