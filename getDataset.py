@@ -546,14 +546,14 @@ def getCmeCoord(coordStrs):
     elif coord2Str[0] == 'N':
         coord2 = float(coord2Str[1:])
     else:
-        raise Exception("coord2 not a coord start with S or N!", coord2Str)
+        raise ValueError("coord2 not a coord start with S or N!", coord2Str)
 
     if coord1Str[0] == 'E':
         coord1 = -float(coord1Str[1:])
     elif coord1Str[0] == 'W':
         coord1 = float(coord1Str[1:])
     else:
-        raise Exception("coord1 not a coord start with E or W!", coord1Str)
+        raise ValueError("coord1 not a coord start with E or W!", coord1Str)
 
     coord = SkyCoord(coord1 * u.deg,
                      coord2 * u.deg,
@@ -665,6 +665,8 @@ def getCmeFilm(cmeidx,
     minDist, minidx, matchFlag = arCmeMatch(dists, arInfo)
     print("cme ar idx = {}".format(minidx))
     print("matchFlag={}".format(matchFlag))
+    if matchFlag>=1:
+        raise ValueError("matchFlag>=1, cme's source ar is not found, try next CEidx",matchFlag)
 
     # film_name = current_name + "\\figure\\film\cme{}film{}.mp4".format(measurement, cmeidx)
 
@@ -793,7 +795,41 @@ os.mkdir(pic_path)
 cmelistpath = 'data/cmelist.json'
 file = open(cmelistpath, 'r', encoding='utf-8')
 cmelist = json.load(file)
-CEidx = 59
+ar_search_t1 = 60
+ar_search_t2 = 0
+film_t1 = 120
+film_t2 = -30
+freq = '1min'
+ar_threshold = (100,6)
+film_path = os.getcwd() + "\\figure\\film\\"
+for CEidx in range(0,len(cmelist),20):
+    theCmeInfo = cmelist[CEidx]
+
+    try:
+        theArInfo, cache = getArInfoWithCmeInfo(theCmeInfo,
+                                                time_earlier1=ar_search_t1,
+                                                time_earlier2=ar_search_t2,
+                                                ar_threshold=ar_threshold,
+                                                fmt="%Y-%m-%dT%H:%MZ")
+        getCmeFilm(CEidx,
+                   theCmeInfo,
+                   theArInfo,
+                   cache,
+                   time_earlier1=film_t1,
+                   time_earlier2=film_t2,
+                   freq=freq,
+                   film_path=film_path
+                   )
+    except ValueError:
+        print("CMEidx: {} cme coordstr error, or no AR found. goto next CEidx".format(CEidx))
+    except AssertionError:
+        print("CMEidx: {} 可能没找到合适的AR，换到下一个CME".format(CEidx))
+    finally:
+        continue
+
+
+'''
+#CEidx = 59
 theCmeInfo = cmelist[CEidx]
 theArInfo, cache = getArInfoWithCmeInfo(theCmeInfo,
                                         time_earlier1=60,
@@ -809,7 +845,7 @@ getCmeFilm(CEidx,
            freq='5min',
            film_path=os.getcwd()+"\\figure\\film\\"
            )
-
+'''
 # 人工判断，哪个活动区
 # 需要的活动区信息：时间、中心位置、边界的4个坐标
 # 需要的CME信息：时间（完全可以根据CME catalog获取）
