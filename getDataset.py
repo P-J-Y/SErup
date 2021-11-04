@@ -316,8 +316,9 @@ def deleteSmallARs(ARresults, threshold=(100,6), fmt="%Y-%m-%dT%H:%M:%S"):
     # 把scale足够大的提取出来
     # 如果 |x+-width/2|>900  width = 2*min(|900+-x|)
     AR_coordsyss = ARresults['hek']['event_coordsys']
-    coordunits = {"UTC-HPC-TOPO":u.arcsec,"UTC-HGS-TOPO":u.deg}
-    thresholds = {"UTC-HPC-TOPO":threshold[0],"UTC-HGS-TOPO":threshold[1]}
+    AR_coordunitstr = ARresults['hek']['event_coordunit']
+    coordunits = {"UTC-HPC-TOPO":u.arcsec,"UTC-HGS-TOPO":u.deg,"UTC-HGC-TOPO":u.deg}
+    thresholds = {"UTC-HPC-TOPO":threshold[0],"UTC-HGS-TOPO":threshold[1],"UTC-HGC-TOPO":threshold[1]}
     AR_coordunits = [coordunits[AR_coordsyss[i]] for i in range(len(AR_coordsyss))]
     AR_xs = np.multiply(ARresults['hek']['event_coord1'],AR_coordunits)
     AR_ys = np.multiply(ARresults['hek']['event_coord2'],AR_coordunits)
@@ -511,10 +512,79 @@ def arCmeMatch(dists,arInfo):
     matchFlag = int(np.floor_divide(minDist,arInfo['ar_scales'][idx].value))
     return minDist,idx,matchFlag
 
+def getArInfoWithCmeInfo(cmeinfo,
+                         time_earlier1=60,
+                         time_earlier2=0,
+                         ar_threshold = (100, 6),
+                         fmt = "%Y-%m-%dT%H:%MZ"):
+    tstart = datetime.datetime.strptime(cmeinfo["startTime"], fmt)
+    ARresults = getArs(tstart, time_earlier1=time_earlier1, time_earlier2=time_earlier2)
+    arInfo = deleteSmallARs(ARresults, threshold=ar_threshold)
+    cache = tstart
+    return arInfo,cache
+
+def getCmeFilm(cmeidx,
+               cmeInfo,
+               arInfo,
+               cache,
+               time_earlier1=90,
+               time_earlier2=-20,
+               freq='2min',
+               ):
+    '''
+
+    :param cmeidx:
+    :param cmeInfo:
+    :param arInfo:
+    :param fmt: cme数据的时间格式
+    :param time_earlier1: 画图时候提前的时间 min
+    :param time_earlier2: 画图结束时间（先对于cme开始），如果要画到cme之后就设置成负的
+    :param freq: 画图间隔频率
+    :return:
+    '''
+
+    tstart = cache
+    CeCoordStr = cmeInfo["sourceLocation"]
+    CE_coord = getCmeCoord(breakCoordStr(CeCoordStr))
+    dists = getDists(arInfo, CE_coord, tstart)
+    minDist, minidx, matchFlag = arCmeMatch(dists, arInfo)
+    print("cme ar idx = {}".format(minidx))
+    print("matchFlag={}".format(matchFlag))
+
+    observatory = "SDO"
+    instrument = "AIA"
+    # measurement="magnetogram"
+    measurement = "193"
+
+    getCmeSunWithArIndex(tstart,
+                         CE_coord,
+                         arInfo,
+                         time_earlier1=time_earlier1,
+                         time_earlier2=time_earlier2,
+                         freq=freq,
+                         observatory=observatory,
+                         instrument=instrument,
+                         measurement=measurement)
+    current_name = os.getcwd()
+    film_name = current_name + "\\figure\\film\cme{}film{}.mp4".format(measurement, cmeidx)
+    pic_path = current_name + "\\figure\cme\\"
+
+    ffin = FFmpeg(inputs={pic_path + '%d.png': '-y -r 4'},
+                  outputs={film_name: None})
+    # print(ffin.cmd)
+    ffin.run()
+
+    import shutil
+    shutil.rmtree(pic_path)
+    os.mkdir(pic_path)
+
+'''    
 cmelistpath='data/cmelist.json'
 file = open(cmelistpath,'r',encoding='utf-8')
 cmelist = json.load(file)
-CEidx=2
+CEidx=5
+theCmeInfo = cmelist[CEidx]
+
 #tstart = "2015/10/22 02:00:00"
 fmt = "%Y-%m-%dT%H:%MZ" #cme数据的时间格式
 #tstart = datetime.datetime.strptime("2021-04-20 00:12",fmt)
@@ -561,6 +631,7 @@ film_name = current_name+"\\figure\\film\cme{}film{}.mp4".format(measurement,CEi
 #pic_path = "E:\GithubLocal\SErup\\figure\cme\\"
 pic_path = current_name+"\\figure\cme\\"
 '''
+'''
 可以用cv2来合成视频，好像会快一点，但是会限制必须输入图片大小，不太方便（还需要注意视频格式必须和编码器匹配）
 images = os.listdir(pic_path)
 images.sort(key=lambda x: int(x.split('.')[0]))
@@ -579,7 +650,7 @@ videoWriter.release()
 cv2.destroyAllWindows()
 #imageio.mimwrite(gif_name, frames, 'GIF', duration=0.5)
 '''
-
+'''
 ffin = FFmpeg(inputs={pic_path+'%d.png': '-y -r 4'},
               outputs={film_name: None})
 #print(ffin.cmd)
@@ -589,6 +660,27 @@ ffin.run()
 import shutil
 shutil.rmtree(pic_path)
 os.mkdir(pic_path)
+'''
+
+cmelistpath='data/cmelist.json'
+file = open(cmelistpath,'r',encoding='utf-8')
+cmelist = json.load(file)
+CEidx=10
+theCmeInfo = cmelist[CEidx]
+theArInfo,cache = getArInfoWithCmeInfo(theCmeInfo,
+                         time_earlier1=60,
+                         time_earlier2=0,
+                         ar_threshold = (100, 6),
+                         fmt = "%Y-%m-%dT%H:%MZ")
+getCmeFilm(CEidx,
+           theCmeInfo,
+           theArInfo,
+           cache,
+           time_earlier1=90,
+           time_earlier2=-20,
+           freq='5min'
+           )
+
 
 # 人工判断，哪个活动区
 # 需要的活动区信息：时间、中心位置、边界的4个坐标
