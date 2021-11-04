@@ -22,7 +22,7 @@ import pandas as pd
 import imageio
 import os
 import json
-#import cv2
+# import cv2
 import sunpy.coordinates.frames as f
 from ffmpy3 import FFmpeg
 
@@ -66,19 +66,19 @@ def getArs(CE_tstart, time_earlier1=30, time_earlier2=0, event_type='AR'):
     :return: ARresult-a list contain all the ARs during time_earlier1 to time_earlier2 before the CME
             cache-CME info
     '''
-    #assert CEidx < len(CEresults['hek']['event_endtime'])
-    #fmt = "%Y-%m-%dT%H:%M:%S"
-    #CE_x = CEresults['hek']['event_coord1'][CEidx]
-    #CE_y = CEresults['hek']['event_coord2'][CEidx]
-    #CE_tstart = datetime.datetime.strptime(CEresults['hek']['event_starttime'][CEidx], fmt)
-    #CE_tend = datetime.datetime.strptime(CEresults['hek']['event_endtime'][CEidx], fmt)
+    # assert CEidx < len(CEresults['hek']['event_endtime'])
+    # fmt = "%Y-%m-%dT%H:%M:%S"
+    # CE_x = CEresults['hek']['event_coord1'][CEidx]
+    # CE_y = CEresults['hek']['event_coord2'][CEidx]
+    # CE_tstart = datetime.datetime.strptime(CEresults['hek']['event_starttime'][CEidx], fmt)
+    # CE_tend = datetime.datetime.strptime(CEresults['hek']['event_endtime'][CEidx], fmt)
 
     AR_tstart = CE_tstart - datetime.timedelta(minutes=time_earlier1)
     AR_tend = CE_tstart - datetime.timedelta(minutes=time_earlier2)
     ARresult = Fido.search(a.Time(AR_tstart, AR_tend), a.hek.EventType(event_type))
-    #cache = (CE_x, CE_y, CE_tstart, CE_tend, AR_tstart, AR_tend)
-    #cache = (CE_tstart, AR_tstart, AR_tend)
-    return ARresult#, cache
+    # cache = (CE_x, CE_y, CE_tstart, CE_tend, AR_tstart, AR_tend)
+    # cache = (CE_tstart, AR_tstart, AR_tend)
+    return ARresult  # , cache
 
 
 '''
@@ -96,8 +96,8 @@ def getDists(arInfo, CE_coord, CE_tstart):
     :param cache: 
     :return: 
     '''
-    #hv = HelioviewerClient()
-    #CE_tstart, time1, time2 = cache
+    # hv = HelioviewerClient()
+    # CE_tstart, time1, time2 = cache
     dists = []
     for i in range(arInfo['ar_num']):
         AR_coord = arInfo["ar_coords"][i]
@@ -108,7 +108,7 @@ def getDists(arInfo, CE_coord, CE_tstart):
             np.sqrt((theRotated_coord.lon.deg - CE_coord.lon.deg) ** 2 +
                     (theRotated_coord.lat.deg - CE_coord.lat.deg) ** 2)
         )
-    #cache = (CE_x, CE_y, CE_tstart, CE_tend, CE_t,
+    # cache = (CE_x, CE_y, CE_tstart, CE_tend, CE_t,
     #         AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts, AR_coords, cframes,
     #         time1, time2)
     '''
@@ -164,7 +164,7 @@ def getFrame(t, c1, c2, width, height, iscme=0, idx=0):
     height = height * u.arcsec
 
     def getSubMap(aMap, bottom_left, width, height, savefileName):
-        thesubmap = aMap.submap(bottom_left, width=width, height=height)
+        thesubmap = aMap.submap
         figure = plt.figure(frameon=False)
         ax = plt.subplot(projection=thesubmap)
         # Disable the axis
@@ -303,7 +303,7 @@ getFrames(AR_coords[ar_idx],
 '''
 
 
-def deleteSmallARs(ARresults, threshold=(100,6), fmt="%Y-%m-%dT%H:%M:%S"):
+def deleteSmallARs(ARresults, threshold=(100, 6), fmt="%Y-%m-%dT%H:%M:%S"):
     '''
 
     :param ARresults:
@@ -317,22 +317,24 @@ def deleteSmallARs(ARresults, threshold=(100,6), fmt="%Y-%m-%dT%H:%M:%S"):
     # 如果 |x+-width/2|>900  width = 2*min(|900+-x|)
     AR_coordsyss = ARresults['hek']['event_coordsys']
     AR_coordunitstr = ARresults['hek']['event_coordunit']
-    coordunits = {"UTC-HPC-TOPO":u.arcsec,"UTC-HGS-TOPO":u.deg,"UTC-HGC-TOPO":u.deg}
-    thresholds = {"UTC-HPC-TOPO":threshold[0],"UTC-HGS-TOPO":threshold[1],"UTC-HGC-TOPO":threshold[1]}
+    coordunits = {"UTC-HPC-TOPO": u.arcsec, "UTC-HGS-TOPO": u.deg, "UTC-HGC-TOPO": u.deg}
+    thresholds = {"UTC-HPC-TOPO": threshold[0], "UTC-HGS-TOPO": threshold[1], "UTC-HGC-TOPO": threshold[1]}
     AR_coordunits = [coordunits[AR_coordsyss[i]] for i in range(len(AR_coordsyss))]
-    AR_xs = np.multiply(ARresults['hek']['event_coord1'],AR_coordunits)
-    AR_ys = np.multiply(ARresults['hek']['event_coord2'],AR_coordunits)
-    AR_LL_xs = np.multiply(ARresults['hek']['boundbox_c1ll'],AR_coordunits)
-    AR_LL_ys = np.multiply(ARresults['hek']['boundbox_c2ll'],AR_coordunits)
-    AR_UR_xs = np.multiply(ARresults['hek']['boundbox_c1ur'],AR_coordunits)
-    AR_UR_ys = np.multiply(ARresults['hek']['boundbox_c2ur'],AR_coordunits)
+    AR_xs = np.multiply(ARresults['hek']['event_coord1'], AR_coordunits)
+    AR_ys = np.multiply(ARresults['hek']['event_coord2'], AR_coordunits)
+    AR_LL_xs = np.multiply(ARresults['hek']['boundbox_c1ll'], AR_coordunits)
+    AR_LL_ys = np.multiply(ARresults['hek']['boundbox_c2ll'], AR_coordunits)
+    AR_UR_xs = np.multiply(ARresults['hek']['boundbox_c1ur'], AR_coordunits)
+    AR_UR_ys = np.multiply(ARresults['hek']['boundbox_c2ur'], AR_coordunits)
     AR_widths = AR_UR_xs - AR_LL_xs
     AR_heights = AR_UR_ys - AR_LL_ys
     AR_scales = np.min([AR_widths, AR_heights], axis=0)
     AR_thresholds = [thresholds[AR_coordsyss[i]] for i in range(len(AR_coordsyss))]
-    AR_thresholds = np.multiply(AR_thresholds,AR_coordunits)
-    bigArIdx = (np.array(AR_scales) >= np.array(AR_thresholds)) & (np.array(ARresults['hek']['frm_identifier']) == "HMI Active Region Patch")
-    assert np.sum(bigArIdx)!=0,"there are only small ARs during this period, choose another event or choose a smaller threshold 没有合适的活动区，换下一个CME，别浪费时间"
+    AR_thresholds = np.multiply(AR_thresholds, AR_coordunits)
+    bigArIdx = (np.array(AR_scales) >= np.array(AR_thresholds)) & (
+                np.array(ARresults['hek']['frm_identifier']) == "HMI Active Region Patch")
+    assert np.sum(
+        bigArIdx) != 0, "there are only small ARs during this period, choose another event or choose a smaller threshold 没有合适的活动区，换下一个CME，别浪费时间"
     AR_tstarts = np.array(
         [datetime.datetime.strptime(ARresults['hek']['event_starttime'][i], fmt) for i in range(len(AR_LL_xs))])
     AR_tends = np.array(
@@ -347,18 +349,18 @@ def deleteSmallARs(ARresults, threshold=(100,6), fmt="%Y-%m-%dT%H:%M:%S"):
               "ar_scales": AR_scales[bigArIdx],
               "ar_ts": AR_ts[bigArIdx],
               "ar_num": sum(bigArIdx),
-              "ar_coordsyss":AR_coordsyss[bigArIdx]
+              "ar_coordsyss": AR_coordsyss[bigArIdx]
               }
-    #hv = HelioviewerClient()
-    #cframes = []
+    # hv = HelioviewerClient()
+    # cframes = []
     AR_coords = []
     for i in range(arInfo["ar_num"]):
-        #cfile = hv.download_jp2(arInfo["ar_ts"][i], observatory="SDO", instrument="HMI", measurement="magnetogram")
-        #cmap = Map(cfile)
-        #cframe = cmap.coordinate_frame
-        #cframes.append(cframe)
+        # cfile = hv.download_jp2(arInfo["ar_ts"][i], observatory="SDO", instrument="HMI", measurement="magnetogram")
+        # cmap = Map(cfile)
+        # cframe = cmap.coordinate_frame
+        # cframes.append(cframe)
         if arInfo["ar_coordsyss"][i] == "UTC-HPC-TOPO":
-            theAR_coord = SkyCoord(arInfo["ar_xs"][i],arInfo["ar_ys"][i],
+            theAR_coord = SkyCoord(arInfo["ar_xs"][i], arInfo["ar_ys"][i],
                                    frame=frames.Helioprojective,
                                    obstime=arInfo["ar_ts"][i],
                                    observer="earth",
@@ -368,9 +370,9 @@ def deleteSmallARs(ARresults, threshold=(100,6), fmt="%Y-%m-%dT%H:%M:%S"):
                                    frame="heliographic_stonyhurst",
                                    obstime=arInfo["ar_ts"][i],
                                    observer="earth")
-        #theAR_coord = SkyCoord(arInfo["ar_xs"][i] * u.arcsec, arInfo["ar_ys"][i] * u.arcsec, frame=cframe)
+        # theAR_coord = SkyCoord(arInfo["ar_xs"][i] * u.arcsec, arInfo["ar_ys"][i] * u.arcsec, frame=cframe)
         AR_coords.append(theAR_coord)
-    #arInfo["ar_cframes"] = cframes
+    # arInfo["ar_cframes"] = cframes
     arInfo["ar_coords"] = AR_coords
     return arInfo
 
@@ -388,13 +390,30 @@ CE_x, CE_y, CE_tstart, CE_tend,AR_tstart,AR_tend = cache'''
 def getCmeSunWithArIndex(cmeTstart,
                          cmeCoord,
                          arInfo,
+                         minidx,
                          time_earlier1=20,
                          time_earlier2=-20,
                          freq='min',
                          observatory="SDO",
                          instrument="AIA",
-                         measurement="193"):  # cme时间：根据CME catalog；ar信息：根据HEK搜索出比较大的,最好是直接输入AR的完整信息；输出：gif+活动区信息列表
-
+                         measurement="193",
+                         mapFileDir=os.getcwd() + "\\figure\\cme\\mapcache\\",
+                         submapFileDir=os.getcwd() + "\\figure\\cme\\submapcache\\"):  # cme时间：根据CME catalog；ar信息：根据HEK搜索出比较大的,最好是直接输入AR的完整信息；输出：gif+活动区信息列表
+    '''
+    获取事件的图片，包括全日面图片和互动区图片
+    :param cmeTstart:
+    :param cmeCoord:
+    :param arInfo:
+    :param time_earlier1:
+    :param time_earlier2:
+    :param freq:
+    :param observatory:
+    :param instrument:
+    :param measurement:
+    :param mapFileDir:
+    :param submapFileDir:
+    :return:
+    '''
     # 记得在CME爆发时刻打个记号（图上标记一下，这样判断的时候才能判断出是哪个CME，免得搞错时间
     hv = HelioviewerClient()
 
@@ -408,7 +427,16 @@ def getCmeSunWithArIndex(cmeTstart,
         fileName = "figure/cme/aia_{}_{}.png".format(measurement, timeStrForFig)
         return themap, fileName
 
-    def getCmeSunFrame(t, arInfo, idx, cmeCoord, observatory=observatory, instrument=instrument, measurement=measurement):
+    def getCmeSunFrame(t,
+                       arInfo,
+                       idx,
+                       cmeCoord,
+                       minidx=minidx,
+                       observatory=observatory,
+                       instrument=instrument,
+                       measurement=measurement,
+                       mapFileDir=mapFileDir,
+                       submapFileDir=submapFileDir):
         themap, fileName = getMap(t, observatory=observatory, instrument=instrument, measurement=measurement)
         timeStrForFig = t.strftime("%Y-%m-%d %H:%M:%S")
         # fig = plt.figure()
@@ -419,28 +447,28 @@ def getCmeSunWithArIndex(cmeTstart,
         # Prevent the image from being re-scaled while overplotting.
         ax.set_autoscale_on(False)
         for i in range(arInfo["ar_num"]):
-            if t>arInfo["ar_tends"][i] or t<arInfo["ar_tstarts"][i]:
+            if t > arInfo["ar_tends"][i] or t < arInfo["ar_tstarts"][i]:
                 continue
             theAR_coord = arInfo["ar_coords"][i]
             transAR_coord = theAR_coord.transform_to(themap.coordinate_frame)
-            #transAR_coord = theAR_coord.transform_to(frames.Helioprojective)
+            # transAR_coord = theAR_coord.transform_to(frames.Helioprojective)
             theRotated_coord = solar_rotate_coordinate(transAR_coord, time=t)
             if np.isnan(theRotated_coord.Tx.arcsec):
-                #theRotated_coord = theAR_coord
+                # theRotated_coord = theAR_coord
                 continue
 
-            #transRotated_coord = theRotated_coord.transform_to(themap.coordinate_frame)
+            # transRotated_coord = theRotated_coord.transform_to(themap.coordinate_frame)
             ax.plot_coord(theRotated_coord, 'x', label=i)
-            if arInfo["ar_coordsyss"][i]=="UTC-HPC-TOPO":
-                thebl = SkyCoord(theRotated_coord.transform_to(theAR_coord.frame).Tx-arInfo["ar_widths"][i]/2,
-                            theRotated_coord.transform_to(theAR_coord.frame).Ty-arInfo["ar_heights"][i]/2,
-                            frame=theAR_coord.frame).transform_to(themap.coordinate_frame)
-            elif arInfo["ar_coordsyss"][i]=="UTC-HGS-TOPO":
+            if arInfo["ar_coordsyss"][i] == "UTC-HPC-TOPO":
+                thebl = SkyCoord(theRotated_coord.transform_to(theAR_coord.frame).Tx - arInfo["ar_widths"][i] / 2,
+                                 theRotated_coord.transform_to(theAR_coord.frame).Ty - arInfo["ar_heights"][i] / 2,
+                                 frame=theAR_coord.frame).transform_to(themap.coordinate_frame)
+            elif arInfo["ar_coordsyss"][i] == "UTC-HGS-TOPO":
                 thebl = SkyCoord(theRotated_coord.transform_to(theAR_coord.frame).lon - arInfo["ar_widths"][i] / 2,
-                            theRotated_coord.transform_to(theAR_coord.frame).lat - arInfo["ar_heights"][i] / 2,
-                            frame=theAR_coord.frame)
-            themap.draw_quadrangle(thebl,width=arInfo["ar_widths"][i],height=arInfo["ar_heights"][i])
-            #ax.scatter_coord(theRotated_coord.Tx.arcsec,theRotated_coord.Ty.arcsec)
+                                 theRotated_coord.transform_to(theAR_coord.frame).lat - arInfo["ar_heights"][i] / 2,
+                                 frame=theAR_coord.frame)
+            themap.draw_quadrangle(thebl, width=arInfo["ar_widths"][i], height=arInfo["ar_heights"][i])
+            # ax.scatter_coord(theRotated_coord.Tx.arcsec,theRotated_coord.Ty.arcsec)
 
         # Set title.
         if t < cmeTstart:
@@ -450,8 +478,35 @@ def getCmeSunWithArIndex(cmeTstart,
         ax.plot_coord(cmeCoord, "r+", label="cme")
         plt.legend()
         # plt.savefig(fileName)
-        #plt.show()
-        plt.savefig("figure/cme/{}.png".format(idx),dpi=600)
+        # plt.show()
+        # plt.savefig("figure/cme/{}.png".format(idx),dpi=600)
+        plt.savefig("{}{}.png".format(mapFileDir, idx), dpi=600)
+
+        #get submap
+        cmeArCoord = arInfo["ar_coords"][minidx]
+        theRotated_arc = solar_rotate_coordinate(cmeArCoord.transform_to(frames.Helioprojective),
+                                                 time=t).transform_to(cmeArCoord.frame)
+        width = arInfo["ar_widths"][minidx]
+        height = arInfo["ar_heights"][minidx]
+        bottom_left = SkyCoord(theRotated_arc.lon - width / 2,
+                               theRotated_arc.lat - height / 2,
+                               frame=cmeArCoord.frame)
+        #theRotated_bl = solar_rotate_coordinate(bottom_left, time=t)
+
+        thesubmap = themap.submap(bottom_left,
+                                  width=width,
+                                  height=height)
+        figure = plt.figure(frameon=False)
+        ax = plt.subplot(projection=thesubmap)
+        # Disable the axis
+        ax.set_axis_off()
+        # Plot the map.
+        # norm = aia_submap.plot_settings['norm']
+        # norm.vmin, norm.vmax = np.percentile(aia_submap.data, [1, 99.9])
+        ax.imshow(thesubmap.data,
+                  #           norm=norm,
+                  cmap=thesubmap.plot_settings['cmap'])
+        plt.savefig("{}{}.png".format(submapFileDir, idx), dpi=600)
 
     # ims = []
     fig = plt.figure()
@@ -460,7 +515,8 @@ def getCmeSunWithArIndex(cmeTstart,
     ts = list(pd.date_range(tstart, tend, freq=freq))
     idx = 0
     for t in ts:
-        getCmeSunFrame(t, arInfo, idx, cmeCoord, observatory=observatory, instrument=instrument, measurement=measurement)
+        getCmeSunFrame(t, arInfo, idx, cmeCoord, observatory=observatory, instrument=instrument,
+                       measurement=measurement)
         # ims.append(im)
         idx += 1
     # ani = animation.ArtistAnimation(fig, ims, interval=50, repeat_delay=1000)
@@ -471,10 +527,12 @@ def getCmeSunWithArIndex(cmeTstart,
     # writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
     # ani.save("figure/cme/movie.mp4", writer=writer)
 
+
 def breakCoordStr(coordStr):
     coord2Str = coordStr[0:3]
     coord1Str = coordStr[3:]
-    return (coord2Str,coord1Str)
+    return (coord2Str, coord1Str)
+
 
 def getCmeCoord(coordStrs):
     '''
@@ -482,46 +540,49 @@ def getCmeCoord(coordStrs):
     :param coordStrs:
     :return:
     '''
-    coord2Str,coord1Str = coordStrs
-    if coord2Str[0]=='S':
+    coord2Str, coord1Str = coordStrs
+    if coord2Str[0] == 'S':
         coord2 = -float(coord2Str[1:])
-    elif coord2Str[0]=='N':
+    elif coord2Str[0] == 'N':
         coord2 = float(coord2Str[1:])
     else:
         raise Exception("coord2 not a coord start with S or N!", coord2Str)
 
-    if coord1Str[0]=='E':
+    if coord1Str[0] == 'E':
         coord1 = -float(coord1Str[1:])
-    elif coord1Str[0]=='W':
+    elif coord1Str[0] == 'W':
         coord1 = float(coord1Str[1:])
     else:
         raise Exception("coord1 not a coord start with E or W!", coord1Str)
 
-    coord = SkyCoord(coord1*u.deg,
-                    coord2*u.deg,
-                    frame="heliographic_stonyhurst",
-                    #obstime=arInfo["ar_ts"][i],
-                    #observer="earth"
-                    )
+    coord = SkyCoord(coord1 * u.deg,
+                     coord2 * u.deg,
+                     frame="heliographic_stonyhurst",
+                     # obstime=arInfo["ar_ts"][i],
+                     # observer="earth"
+                     )
     return coord
 
-def arCmeMatch(dists,arInfo):
+
+def arCmeMatch(dists, arInfo):
     minDist = min(dists)
     idx = dists.index(minDist)
-    #theScale = arInfo['ar_scales'][idx]
-    matchFlag = int(np.floor_divide(minDist,arInfo['ar_scales'][idx].value))
-    return minDist,idx,matchFlag
+    # theScale = arInfo['ar_scales'][idx]
+    matchFlag = int(np.floor_divide(minDist, arInfo['ar_scales'][idx].value))
+    return minDist, idx, matchFlag
+
 
 def getArInfoWithCmeInfo(cmeinfo,
                          time_earlier1=60,
                          time_earlier2=0,
-                         ar_threshold = (100, 6),
-                         fmt = "%Y-%m-%dT%H:%MZ"):
+                         ar_threshold=(100, 6),
+                         fmt="%Y-%m-%dT%H:%MZ"):
     tstart = datetime.datetime.strptime(cmeinfo["startTime"], fmt)
     ARresults = getArs(tstart, time_earlier1=time_earlier1, time_earlier2=time_earlier2)
     arInfo = deleteSmallARs(ARresults, threshold=ar_threshold)
     cache = tstart
-    return arInfo,cache
+    return arInfo, cache
+
 
 def getCmeFilm(cmeidx,
                cmeInfo,
@@ -530,6 +591,7 @@ def getCmeFilm(cmeidx,
                time_earlier1=90,
                time_earlier2=-20,
                freq='2min',
+               film_path = os.getcwd() + "\\figure\\film\\"
                ):
     '''
 
@@ -543,6 +605,59 @@ def getCmeFilm(cmeidx,
     :return:
     '''
 
+    def getMeasurementFilm(tstart,
+                           arInfo,
+                           CE_coord,
+                           observatory,
+                           instrument,
+                           measurement,
+                           fileDir,
+                           minidx,
+                           time_earlier1=time_earlier1,
+                           time_earlier2=time_earlier2,
+                           freq=freq,
+                           cmeidx=cmeidx
+                           ):
+        '''
+        实现获取某一个波段的视频,程序会在filmDir中创建几个cache文件夹（最后会删除），用于临时存放图片
+        :param ts:
+        :param arInfo:
+        :param cmeCoord:
+        :param observatory:
+        :param instrument:
+        :param measurement:
+        :param filmDir: end with "\\" or "/"
+        :return:
+        '''
+        os.mkdir(fileDir + "mapcache")
+        os.mkdir(fileDir + "submapcache")
+
+        getCmeSunWithArIndex(tstart,
+                             CE_coord,
+                             arInfo,
+                             minidx,
+                             time_earlier1=time_earlier1,
+                             time_earlier2=time_earlier2,
+                             freq=freq,
+                             observatory=observatory,
+                             instrument=instrument,
+                             measurement=measurement,
+                             mapFileDir=fileDir + "mapcache\\",
+                             submapFileDir=fileDir + "submapcache\\")
+        ffin1 = FFmpeg(inputs={fileDir + "mapcache\\" + '%d.png': '-y -r 4'},
+                      outputs={fileDir + "CME{}Film{}.mp4".format(measurement, cmeidx): None})
+        # print(ffin.cmd)
+        ffin1.run()
+        ffin2 = FFmpeg(inputs={fileDir + "submapcache\\" + '%d.png': '-y -r 4'},
+                      outputs={fileDir + "AR{}Film{}.mp4".format(measurement, cmeidx): None})
+        # print(ffin.cmd)
+        ffin2.run()
+
+        import shutil
+        shutil.rmtree(fileDir + "mapcache")
+        shutil.rmtree(fileDir + "submapcache")
+        # os.mkdir(pic_path)
+
     tstart = cache
     CeCoordStr = cmeInfo["sourceLocation"]
     CE_coord = getCmeCoord(breakCoordStr(CeCoordStr))
@@ -551,32 +666,45 @@ def getCmeFilm(cmeidx,
     print("cme ar idx = {}".format(minidx))
     print("matchFlag={}".format(matchFlag))
 
+    # film_name = current_name + "\\figure\\film\cme{}film{}.mp4".format(measurement, cmeidx)
+
+    #193
     observatory = "SDO"
     instrument = "AIA"
     # measurement="magnetogram"
     measurement = "193"
+    getMeasurementFilm(tstart,
+                       arInfo,
+                       CE_coord,
+                       observatory,
+                       instrument,
+                       measurement,
+                       film_path,
+                       minidx,
+                       time_earlier1=time_earlier1,
+                       time_earlier2=time_earlier2,
+                       freq=freq,
+                       cmeidx=cmeidx
+                       )
+    #HMI
+    observatory = "SDO"
+    instrument = "HMI"
+    measurement="magnetogram"
+    #measurement = "193"
+    getMeasurementFilm(tstart,
+                       arInfo,
+                       CE_coord,
+                       observatory,
+                       instrument,
+                       measurement,
+                       film_path,
+                       minidx,
+                       time_earlier1=time_earlier1,
+                       time_earlier2=time_earlier2,
+                       freq=freq,
+                       cmeidx=cmeidx
+                       )
 
-    getCmeSunWithArIndex(tstart,
-                         CE_coord,
-                         arInfo,
-                         time_earlier1=time_earlier1,
-                         time_earlier2=time_earlier2,
-                         freq=freq,
-                         observatory=observatory,
-                         instrument=instrument,
-                         measurement=measurement)
-    current_name = os.getcwd()
-    film_name = current_name + "\\figure\\film\cme{}film{}.mp4".format(measurement, cmeidx)
-    pic_path = current_name + "\\figure\cme\\"
-
-    ffin = FFmpeg(inputs={pic_path + '%d.png': '-y -r 4'},
-                  outputs={film_name: None})
-    # print(ffin.cmd)
-    ffin.run()
-
-    import shutil
-    shutil.rmtree(pic_path)
-    os.mkdir(pic_path)
 
 '''    
 cmelistpath='data/cmelist.json'
@@ -662,25 +790,25 @@ shutil.rmtree(pic_path)
 os.mkdir(pic_path)
 '''
 
-cmelistpath='data/cmelist.json'
-file = open(cmelistpath,'r',encoding='utf-8')
+cmelistpath = 'data/cmelist.json'
+file = open(cmelistpath, 'r', encoding='utf-8')
 cmelist = json.load(file)
-CEidx=10
+CEidx = 59
 theCmeInfo = cmelist[CEidx]
-theArInfo,cache = getArInfoWithCmeInfo(theCmeInfo,
-                         time_earlier1=60,
-                         time_earlier2=0,
-                         ar_threshold = (100, 6),
-                         fmt = "%Y-%m-%dT%H:%MZ")
+theArInfo, cache = getArInfoWithCmeInfo(theCmeInfo,
+                                        time_earlier1=60,
+                                        time_earlier2=0,
+                                        ar_threshold=(100, 6),
+                                        fmt="%Y-%m-%dT%H:%MZ")
 getCmeFilm(CEidx,
            theCmeInfo,
            theArInfo,
            cache,
            time_earlier1=90,
            time_earlier2=-20,
-           freq='5min'
+           freq='5min',
+           film_path=os.getcwd()+"\\figure\\film\\"
            )
-
 
 # 人工判断，哪个活动区
 # 需要的活动区信息：时间、中心位置、边界的4个坐标
