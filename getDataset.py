@@ -486,6 +486,8 @@ def getCmeSunWithArIndex(cmeTstart,
         cmeArCoord = arInfo["ar_coords"][minidx]
         theRotated_arc = solar_rotate_coordinate(cmeArCoord.transform_to(frames.Helioprojective),
                                                  time=t).transform_to(cmeArCoord.frame)
+        if np.isnan(theRotated_arc.lon.value):
+            theRotated_arc = cmeArCoord
         width = arInfo["ar_widths"][minidx]
         height = arInfo["ar_heights"][minidx]
         bottom_left = SkyCoord(theRotated_arc.lon - width / 2,
@@ -797,10 +799,10 @@ cmelistpath = 'data/cmelist.json'
 file = open(cmelistpath, 'r', encoding='utf-8')
 cmelist = json.load(file)
 ar_search_t1 = 60
-ar_search_t2 = 0
+ar_search_t2 = 20
 film_t1 = 120
-film_t2 = -30
-freq = '1min'
+film_t2 = 20
+freq = '2min'
 ar_threshold = (100,6)
 film_path = os.getcwd() + "\\figure\\film\\"
 for CEidx in range(5,len(cmelist),40):
