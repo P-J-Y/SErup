@@ -22,7 +22,7 @@ import pandas as pd
 import imageio
 import os
 import json
-import cv2
+#import cv2
 import sunpy.coordinates.frames as f
 from ffmpy3 import FFmpeg
 
@@ -77,8 +77,8 @@ def getArs(CE_tstart, time_earlier1=30, time_earlier2=0, event_type='AR'):
     AR_tend = CE_tstart - datetime.timedelta(minutes=time_earlier2)
     ARresult = Fido.search(a.Time(AR_tstart, AR_tend), a.hek.EventType(event_type))
     #cache = (CE_x, CE_y, CE_tstart, CE_tend, AR_tstart, AR_tend)
-    cache = (CE_tstart, AR_tstart, AR_tend)
-    return ARresult, cache
+    #cache = (CE_tstart, AR_tstart, AR_tend)
+    return ARresult#, cache
 
 
 '''
@@ -89,43 +89,34 @@ ARresults,cache = getArs(CEresults)
 '''
 
 
-def getDists(ARresults, CE_x,CE_y, cache, fmt="%Y-%m-%dT%H:%M:%S"):
+def getDists(arInfo, CE_coord, CE_tstart):
     '''
     
     :param ARresults: 
     :param cache: 
     :return: 
     '''
-    hv = HelioviewerClient()
-    CE_tstart, time1, time2 = cache
-    #CE_t = CE_tstart + (CE_tend - CE_tstart) / 2
-    AR_tstarts = [datetime.datetime.strptime(i, fmt) for i in ARresults['hek']['event_starttime']]
-    AR_tends = [datetime.datetime.strptime(i, fmt) for i in ARresults['hek']['event_endtime']]
-    AR_ts = AR_tstarts + np.divide(np.subtract(AR_tends, AR_tstarts), 2)
-    AR_xs = ARresults['hek']['event_coord1']
-    AR_ys = ARresults['hek']['event_coord2']
-    AR_coords = []
+    #hv = HelioviewerClient()
+    #CE_tstart, time1, time2 = cache
     dists = []
-    cframes = []
-    for i in range(len(AR_xs)):
-        cfile = hv.download_jp2(AR_ts[i], observatory="SDO", instrument="HMI", measurement="magnetogram")
-        cmap = Map(cfile)
-        cframe = cmap.coordinate_frame
-        cframes.append(cframe)
-        theAR_coord = SkyCoord(AR_xs[i] * u.arcsec, AR_ys[i] * u.arcsec, frame=cframe)
-        theRotated_coord = solar_rotate_coordinate(theAR_coord, time=CE_tstart)
-        AR_coords.append(theAR_coord)
+    for i in range(arInfo['ar_num']):
+        AR_coord = arInfo["ar_coords"][i]
+
+        theRotated_coord = solar_rotate_coordinate(AR_coord.transform_to(frames.Helioprojective), time=CE_tstart)
+        theRotated_coord = theRotated_coord.transform_to(AR_coord.frame)
         dists.append(
-            np.sqrt((theRotated_coord.Tx.arcsec - CE_x) ** 2 +
-                    (theRotated_coord.Ty.arcsec - CE_y) ** 2)
+            np.sqrt((theRotated_coord.lon.deg - CE_coord.lon.deg) ** 2 +
+                    (theRotated_coord.lat.deg - CE_coord.lat.deg) ** 2)
         )
     #cache = (CE_x, CE_y, CE_tstart, CE_tend, CE_t,
     #         AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts, AR_coords, cframes,
     #         time1, time2)
+    '''
     cache = (CE_x, CE_y, CE_tstart,
              AR_xs, AR_ys, AR_tstarts, AR_tends, AR_ts, AR_coords, cframes,
              time1, time2)
-    return dists, cache
+    '''
+    return dists
 
 
 '''
@@ -513,6 +504,12 @@ def getCmeCoord(coordStrs):
                     )
     return coord
 
+def arCmeMatch(dists,arInfo):
+    minDist = min(dists)
+    idx = dists.index(minDist)
+    #theScale = arInfo['ar_scales'][idx]
+    matchFlag = int(np.floor_divide(minDist,arInfo['ar_scales'][idx].value))
+    return minDist,idx,matchFlag
 
 cmelistpath='data/cmelist.json'
 file = open(cmelistpath,'r',encoding='utf-8')
@@ -541,11 +538,12 @@ CeCoordStr = theCmeInfo["sourceLocation"]
 CE_coord = getCmeCoord(breakCoordStr(CeCoordStr))
 
 #CEresults = getCmes(tstart, tend)
-ARresults,cache = getArs(tstart,time_earlier1=60,time_earlier2=0)
+ARresults = getArs(tstart,time_earlier1=60,time_earlier2=0)
 arInfo = deleteSmallARs(ARresults,threshold=ar_threshold)
-CE_tstart, AR_tstart,AR_tend = cache
-
-getCmeSunWithArIndex(CE_tstart,
+#CE_tstart, AR_tstart,AR_tend = cache
+dists = getDists(arInfo, CE_coord, tstart)
+minDist,minidx,matchFlag = arCmeMatch(dists,arInfo)
+getCmeSunWithArIndex(tstart,
                      CE_coord,
                     arInfo,
                     time_earlier1=90,
@@ -555,10 +553,13 @@ getCmeSunWithArIndex(CE_tstart,
                     instrument=instrument,
                     measurement=measurement)
 
+current_name = os.getcwd()
 #gif_name = "E:\GithubLocal\SErup\\figure\gif\cme{}gif{}.gif".format(measurement,CEidx)
-film_name = "E:\GithubLocal\SErup\\figure\\film\cme{}film{}.mp4".format(measurement,CEidx)
+#film_name = "E:\GithubLocal\SErup\\figure\\film\cme{}film{}.mp4".format(measurement,CEidx)
+film_name = current_name+"\\figure\\film\cme{}film{}.mp4".format(measurement,CEidx)
 #film_name = "E:\GithubLocal\SErup\\figure\\film\\test.mp4"
-pic_path = "E:\GithubLocal\SErup\\figure\cme\\"
+#pic_path = "E:\GithubLocal\SErup\\figure\cme\\"
+pic_path = current_name+"\\figure\cme\\"
 '''
 可以用cv2来合成视频，好像会快一点，但是会限制必须输入图片大小，不太方便（还需要注意视频格式必须和编码器匹配）
 images = os.listdir(pic_path)
