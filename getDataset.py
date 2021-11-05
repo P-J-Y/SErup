@@ -25,7 +25,7 @@ import json
 # import cv2
 import sunpy.coordinates.frames as f
 from ffmpy3 import FFmpeg
-
+import shutil
 
 # 1、活动区的时刻现在用的初始时刻，实际上应该考虑从初始到end ok
 # 2、加入判断活动区是否在cme附近的判定 ok
@@ -632,8 +632,14 @@ def getCmeFilm(cmeidx,
         :param filmDir: end with "\\" or "/"
         :return:
         '''
-        os.mkdir(fileDir + "mapcache")
-        os.mkdir(fileDir + "submapcache")
+        try:
+            os.mkdir(fileDir + "mapcache")
+            os.mkdir(fileDir + "submapcache")
+        except FileExistsError:
+            shutil.rmtree(fileDir + "mapcache")
+            shutil.rmtree(fileDir + "submapcache")
+            os.mkdir(fileDir + "mapcache")
+            os.mkdir(fileDir + "submapcache")
 
         getCmeSunWithArIndex(tstart,
                              CE_coord,
@@ -656,7 +662,7 @@ def getCmeFilm(cmeidx,
         # print(ffin.cmd)
         ffin2.run()
 
-        import shutil
+
         shutil.rmtree(fileDir + "mapcache")
         shutil.rmtree(fileDir + "submapcache")
         # os.mkdir(pic_path)
@@ -805,7 +811,7 @@ film_t2 = 20
 freq = '2min'
 ar_threshold = (100,6)
 film_path = os.getcwd() + "\\figure\\film\\"
-for CEidx in range(5,len(cmelist),40):
+for CEidx in range(521,len(cmelist)):
     theCmeInfo = cmelist[CEidx]
 
     try:
@@ -825,9 +831,9 @@ for CEidx in range(5,len(cmelist),40):
                    )
     except ValueError:
         print("CMEidx: {} cme coordstr error, or no AR found. goto next CEidx".format(CEidx))
+        continue
     except AssertionError:
         print("CMEidx: {} 可能没找到合适的AR，换到下一个CME".format(CEidx))
-    finally:
         continue
 
 
