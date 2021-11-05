@@ -806,12 +806,13 @@ file = open(cmelistpath, 'r', encoding='utf-8')
 cmelist = json.load(file)
 ar_search_t1 = 60
 ar_search_t2 = 20
-film_t1 = 120
-film_t2 = 20
+film_t1 = 300
+film_t2 = 0
 freq = '2min'
 ar_threshold = (100,6)
-film_path = os.getcwd() + "\\figure\\film\\"
-for CEidx in range(521,len(cmelist)):
+film_path = os.getcwd() + "\\figure\\longfilm\\"
+#for CEidx in range(521,len(cmelist)):
+for CEidx in [2,15]:
     theCmeInfo = cmelist[CEidx]
 
     try:
