@@ -1020,7 +1020,7 @@ ar_threshold = (100,6)
 POS = []
 NEG = []
 
-for CEidx in range(10):
+for CEidx in range(100):
     theCmeInfo = cmelist[CEidx]
 
     try:
@@ -1048,10 +1048,8 @@ for CEidx in range(10):
         print("CMEidx: {} 可能没找到合适的AR，换到下一个CME".format(CEidx))
         continue
 
-dataset = {'pos':POS,'neg':NEG}
-filename='data/dataset.json'
-with open(filename,'w') as file_obj:
-    json.dump(dataset,file_obj)
+filename='data/dataset.npz'
+np.savez(filename,pos=POS,neg=NEG)
 
 # getArArray(POS,
 #            tstart,
