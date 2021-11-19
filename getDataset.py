@@ -844,11 +844,11 @@ for CEidx in [2,15]:
 #####################get images########################
 # ARs  活动区列表的列表,包含每个CME（按照一定的序号）所对应的大活动区
 # 下面的函数先实现一个AR图片的获取和标记
-def getArArray(res,
+def getArArray(posres,
+               negres,
                cmeTstart,
-                cmeCoord,
                 arInfo,
-                aridx,
+                minidx,
                 time_earlier1=60,
                 time_earlier2=30,
                 freq='5min',
@@ -896,7 +896,7 @@ def getArArray(res,
         if bigSize==smallSize:
             return submapData
         bigAxis = dataShape.index(bigSize)
-        smallAxis = dataShape.index(smallSize)
+        #smallAxis = dataShape.index(smallSize)
         p1 = (bigSize-smallSize)//2
         p2 = bigSize-smallSize-p1
         bigPad = (0,0)
@@ -910,81 +910,59 @@ def getArArray(res,
 
     def getSubmap(t,
                 arInfo,
-                observatory,
-                instrument,
-                measurement,
-                imgSize = imgSize,
-                aridx=aridx):
-        themap = getMap(t, observatory, instrument, measurement)
-        #timeStrForFig = t.strftime("%Y-%m-%d %H:%M:%S")
-
-        #get submap
-        cmeArCoord = arInfo["ar_coords"][aridx]
-        theRotated_arc = solar_rotate_coordinate(cmeArCoord.transform_to(frames.Helioprojective),
-                                                 time=t).transform_to(cmeArCoord.frame)
-        if np.isnan(theRotated_arc.lon.value):
-            theRotated_arc = cmeArCoord
-        width = arInfo["ar_widths"][aridx]
-        height = arInfo["ar_heights"][aridx]
-        bottom_left = SkyCoord(theRotated_arc.lon - width / 2,
-                               theRotated_arc.lat - height / 2,
-                               frame=cmeArCoord.frame)
-        #theRotated_bl = solar_rotate_coordinate(bottom_left, time=t)
-
-        thesubmap = themap.submap(bottom_left,
-                                  width=width,
-                                  height=height)
-
-        thedata = thesubmap.data
-        thedata = pad2square(thedata)
-        dst_size = (imgSize, imgSize)
-        thedata = cv2.resize(thedata, dst_size, interpolation=cv2.INTER_AREA)
-        #print(img_resize.shape)
-        return thedata
-
-    tstart = cmeTstart - datetime.timedelta(minutes=time_earlier1)
-    tend = cmeTstart - datetime.timedelta(minutes=time_earlier2)
-    ts = list(pd.date_range(tstart, tend, freq=freq))
-    Nchannels = len(instruments)
-    for t in ts:
-        aData = np.zeros((imgSize,imgSize,Nchannels))
+                observatorys,
+                instruments,
+                measurements,
+                Nchannels,
+                posres,
+                negres,
+                minidx,
+                imgSize = imgSize):
+        #get maps
+        themaps = []
         for channelIdx in range(Nchannels):
             observatory = observatorys[channelIdx]
             instrument = instruments[channelIdx]
             measurement = measurements[channelIdx]
-            aData[:,:,channelIdx] = getSubmap(t, arInfo, observatory, instrument,
-                       measurement)
-        res.append(aData)
-    #return res
+            themap = getMap(t, observatory, instrument, measurement)
+            themaps.append(themap)
+        # get submaps
+        for aridx in range(arInfo['ar_num']):
 
-def updateData(POS,NEG,arinfo,tstart,CE_coord,data_t1,data_t2,freq):
-    for aridx in range(arinfo['ar_num']):
-        if aridx == minidx:
-            getArArray(POS,
-                       tstart,
-                       CE_coord,
-                       arinfo,
-                       aridx,
-                       time_earlier1=data_t1,
-                       time_earlier2=data_t2,
-                       freq=freq,
-                       # observatory="SDO",
-                       # instrument="AIA",
-                       # measurement="193",
-                       )
-        else:
-            getArArray(NEG,
-                       tstart,
-                       CE_coord,
-                       arinfo,
-                       aridx,
-                       time_earlier1=data_t1,
-                       time_earlier2=data_t2,
-                       freq=freq,
-                       # observatory="SDO",
-                       # instrument="AIA",
-                       # measurement="193",
-                       )
+            cmeArCoord = arInfo["ar_coords"][aridx]
+            theRotated_arc = solar_rotate_coordinate(cmeArCoord.transform_to(frames.Helioprojective),
+                                                     time=t).transform_to(cmeArCoord.frame)
+            if np.isnan(theRotated_arc.lon.value):
+                theRotated_arc = cmeArCoord
+            width = arInfo["ar_widths"][aridx]
+            height = arInfo["ar_heights"][aridx]
+            bottom_left = SkyCoord(theRotated_arc.lon - width / 2,
+                                   theRotated_arc.lat - height / 2,
+                                   frame=cmeArCoord.frame)
+            # theRotated_bl = solar_rotate_coordinate(bottom_left, time=t)
+            aData = np.zeros((imgSize, imgSize, Nchannels))
+            for channelIdx in range(Nchannels):
+                thesubmap = themaps[channelIdx].submap(bottom_left,
+                                          width=width,
+                                          height=height)
+                thedata = thesubmap.data
+                thedata = pad2square(thedata)
+                dst_size = (imgSize, imgSize)
+                thedata = cv2.resize(thedata, dst_size, interpolation=cv2.INTER_AREA)
+                aData[:, :, channelIdx] = thedata
+            if aridx == minidx:
+                posres.append(aData)
+            else:
+                negres.append(aData)
+
+    tstart = cmeTstart - datetime.timedelta(minutes=time_earlier1)
+    tend = cmeTstart - datetime.timedelta(minutes=time_earlier2)
+    ts = list(pd.date_range(tstart, tend, freq=freq))
+    Nchannels = len(measurements)
+    for t in ts:
+        getSubmap(t,arInfo,observatorys,instruments,measurements,Nchannels,posres,negres,minidx,
+                          imgSize=imgSize)
+
 
 cmelistpath = 'data/cmelist.json'
 file = open(cmelistpath, 'r', encoding='utf-8')
@@ -1020,7 +998,7 @@ ar_threshold = (100,6)
 POS = []
 NEG = []
 
-for CEidx in range(100):
+for CEidx in range(100, 200):
     theCmeInfo = cmelist[CEidx]
 
     try:
@@ -1038,8 +1016,19 @@ for CEidx in range(100):
         print("matchFlag={}".format(matchFlag))
         if matchFlag >= 1:
             raise ValueError("matchFlag>=1, cme's source ar is not found, try next CEidx", matchFlag)
-
-        updateData(POS,NEG,theArInfo,tstart,CE_coord,data_t1,data_t2,freq)
+        getArArray(POS,
+                   NEG,
+                   tstart,
+                   theArInfo,
+                   minidx,
+                   time_earlier1=data_t1,
+                   time_earlier2=data_t2,
+                   freq=freq,
+                   observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                   instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI"),
+                   measurements=("94", "171", "193", "211", "304", "magnetogram"),
+                   imgSize=256,
+                   )
 
     except ValueError:
         print("CMEidx: {} cme coordstr error, or no AR found. goto next CEidx".format(CEidx))
@@ -1047,8 +1036,11 @@ for CEidx in range(100):
     except AssertionError:
         print("CMEidx: {} 可能没找到合适的AR，换到下一个CME".format(CEidx))
         continue
+    except RuntimeError:
+        print("Don't know what happened, may it's the internet?")
+        continue
 
-filename='data/dataset.npz'
+filename='data/dataset2.npz'
 np.savez(filename,pos=POS,neg=NEG)
 
 # getArArray(POS,
