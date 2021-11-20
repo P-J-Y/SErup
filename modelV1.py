@@ -73,7 +73,7 @@ if __name__ == "__main__":
     # 训练模型
     batch_size = 16
     steps_per_epoch = (np.shape(X_train)[0] + batch_size - 1) // batch_size
-    model_v1.fit_generator(generator=data_genetator(X_train, Y_train, batch_size),
+    model_v1.fit_generator(generator=data_genetator(X_train[::7], Y_train[::7], batch_size),
                            steps_per_epoch=steps_per_epoch,
                            epochs=10,
                            verbose=1,

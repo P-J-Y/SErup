@@ -115,14 +115,19 @@ def modelVgg19(input_shape):
     predictons = vgg19_flower(keras_vgg19(X))
 
     model_vgg19 = Model(inputs=X_input, outputs=predictons)
-    for layer in keras_vgg19.layers:
-        layer.trainable = False
-    keras_vgg19.layers[-1].trainable = True
-    keras_vgg19.layers[-2].trainable = True
-    keras_vgg19.layers[-3].trainable = True
-    keras_vgg19.layers[-4].trainable = True
-    keras_vgg19.layers[-5].trainable = True
-    keras_vgg19.layers[-6].trainable = True
+    # for layer in keras_vgg19.layers:
+    #     layer.trainable = False
+    # keras_vgg19.layers[-1].trainable = True
+    # keras_vgg19.layers[-2].trainable = True
+    # keras_vgg19.layers[-3].trainable = True
+    # keras_vgg19.layers[-4].trainable = True
+    # keras_vgg19.layers[-5].trainable = True
+    # keras_vgg19.layers[-6].trainable = True
+    for i in range(0,7):
+        keras_vgg19.layers[i].trainable = False
+
+
+
     for x in model_vgg19.trainable_weights:
         print(x.name)
     print('\n')
