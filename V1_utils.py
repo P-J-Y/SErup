@@ -46,6 +46,34 @@ def creat_dataset():
     file.close()
     # return xtrain_orig,ytrain,xtest_orig,ytest,classes
 
+def creat_dataset_tot():
+    datas = {}
+    for i in range(8):
+        filename = 'data/data60to30/dataset{}.npz'.format(i + 1)
+        dataset = np.load(filename)
+        datas["pos{}".format(i)] = dataset['pos'].astype(np.float32)
+        datas["neg{}".format(i)] = dataset['neg'].astype(np.float32)
+
+    postrain = datas["pos0"]
+    negtrain = datas["neg0"]
+    for i in range(1, 8):
+        postrain = np.concatenate((postrain, datas["pos{}".format(i)]), axis=0)
+        negtrain = np.concatenate((negtrain, datas["neg{}".format(i)]), axis=0)
+
+    xtrain_orig = np.concatenate((postrain, negtrain), axis=0)
+    ytrain = np.append(np.ones(np.shape(postrain)[0], dtype=int),
+                       np.zeros(np.shape(negtrain)[0], dtype=int))
+
+    randTrainPerm = np.random.choice(np.arange(len(ytrain)), size=len(ytrain), replace=False)
+    xtrain_orig = xtrain_orig[randTrainPerm]
+    ytrain = ytrain[randTrainPerm]
+    classes = [0,1]
+    file = h5py.File('data/data60to30/data60to30tot.h5', 'w')
+    file.create_dataset('xtrain_orig', data=xtrain_orig)
+    file.create_dataset('ytrain', data=ytrain)
+    file.create_dataset('classes', data=classes)
+    file.close()
+    # return xtrain_orig,ytrain,xtest_orig,ytest,classes
 
 def load_dataset(filename='data/data60to30/data60to30.h5'):
     file = h5py.File(filename, 'r')
@@ -57,6 +85,14 @@ def load_dataset(filename='data/data60to30/data60to30.h5'):
     ytest = ytest.reshape(1,len(ytest))
     classes = np.array(file['classes'][:])
     return xtrain_orig, ytrain, xtest_orig, ytest, classes
+
+def load_dataset_tot(filename='data/data60to30/data60to30tot.h5'):
+    file = h5py.File(filename, 'r')
+    xtrain_orig = np.array(file['xtrain_orig'][:])
+    ytrain = np.array(file['ytrain'][:])
+    ytrain = ytrain.reshape(1,len(ytrain))
+    classes = np.array(file['classes'][:])
+    return xtrain_orig, ytrain, classes
 
 def modelV1(input_shape):
     """
@@ -103,39 +139,35 @@ def modelVgg19(input_shape):
 
     """
     X_input = Input(input_shape)
-    X = Conv2D(3, (1, 1), strides=(1, 1))(X_input)
-    keras_vgg19 = VGG19(include_top=False, weights="imagenet", input_shape=X.shape[1:])
+    #X = Conv2D(3, (1, 1), strides=(1, 1))(X_input)
+    keras_vgg19 = VGG19(include_top=False, weights="imagenet", input_shape=input_shape)
     vgg19_flower = Sequential()
     vgg19_flower.add(Flatten(input_shape=keras_vgg19.output_shape[1:]))
-    vgg19_flower.add(Dense(512, activation="relu"))
-    vgg19_flower.add(Dropout(0.5))
-    vgg19_flower.add(Dense(128, activation="relu"))
+    vgg19_flower.add(Dense(256, activation="relu"))
     vgg19_flower.add(Dropout(0.5))
     vgg19_flower.add(Dense(1, activation='sigmoid'))
-    predictons = vgg19_flower(keras_vgg19(X))
+    predictons = vgg19_flower(keras_vgg19(X_input))
 
     model_vgg19 = Model(inputs=X_input, outputs=predictons)
-    # for layer in keras_vgg19.layers:
-    #     layer.trainable = False
-    # keras_vgg19.layers[-1].trainable = True
-    # keras_vgg19.layers[-2].trainable = True
-    # keras_vgg19.layers[-3].trainable = True
-    # keras_vgg19.layers[-4].trainable = True
-    # keras_vgg19.layers[-5].trainable = True
-    # keras_vgg19.layers[-6].trainable = True
-    for i in range(0,7):
-        keras_vgg19.layers[i].trainable = False
+    for layer in keras_vgg19.layers:
+        layer.trainable = False
+    keras_vgg19.layers[-1].trainable = True
+    keras_vgg19.layers[-2].trainable = True
 
 
+    # for i in range(0,12):
+    #     keras_vgg19.layers[i].trainable = False
+    #
+    #
+    #
+    # for x in model_vgg19.trainable_weights:
+    #     print(x.name)
+    # print('\n')
+    # for x in model_vgg19.non_trainable_weights:
+    #     print(x.name)
+    # print('\n')
 
-    for x in model_vgg19.trainable_weights:
-        print(x.name)
-    print('\n')
-    for x in model_vgg19.non_trainable_weights:
-        print(x.name)
-    print('\n')
-
-    model_vgg19.summary()
+    # model_vgg19.summary()
 
     return model_vgg19
 
@@ -171,20 +203,22 @@ def modelResnet(input_shape):
     keras_resnet.layers[-4].trainable = True
     keras_resnet.layers[-5].trainable = True
     keras_resnet.layers[-6].trainable = True
-    for x in model_resnet.trainable_weights:
-        print(x.name)
-    print('\n')
-    for x in model_resnet.non_trainable_weights:
-        print(x.name)
-    print('\n')
-
-    model_resnet.summary()
+    # for x in model_resnet.trainable_weights:
+    #     print(x.name)
+    # print('\n')
+    # for x in model_resnet.non_trainable_weights:
+    #     print(x.name)
+    # print('\n')
+    #
+    # model_resnet.summary()
 
     return model_resnet
 
 
 if __name__ == '__main__':
     #creat_dataset()
-    xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset()
+    #creat_dataset_tot()
+    #xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset()
+    xtrain_orig, ytrain, classes = load_dataset_tot()
     print("test down")
 

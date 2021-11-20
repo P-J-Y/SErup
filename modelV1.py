@@ -35,7 +35,7 @@ from tensorflow.keras.preprocessing import image
 
 
 
-def data_genetator(xdata, ydata, batch_size):
+def data_generator(xdata, ydata, batch_size):
     batches = (np.shape(xdata)[0] + batch_size - 1) // batch_size
     while True:
         for i in range(batches):
@@ -44,24 +44,33 @@ def data_genetator(xdata, ydata, batch_size):
             yield (X, Y)
 
 
-def val_genetator(xdata, ydata, batch_size):
+def val_generator(xdata, ydata, batch_size):
     batches = (np.shape(xdata)[0] + batch_size - 1) // batch_size
     for i in range(batches):
         X = xdata[i * batch_size:(i + 1) * batch_size]
         Y = ydata[i * batch_size:(i + 1) * batch_size]
         yield (X, Y)
 
+def pre_generator(xdata,batch_size):
+    batches = (np.shape(xdata)[0] + batch_size - 1) // batch_size
+    for i in range(batches):
+        X = xdata[i * batch_size:(i + 1) * batch_size]
+        yield X
+
 
 ###################### Training #####################
 
 if __name__ == "__main__":
-    xtrain_orig, ytrain, xtest_orig, ytest, classes = V1_utils.load_dataset()
+    #xtrain_orig, ytrain, xtest_orig, ytest, classes = V1_utils.load_dataset()
+    xtrain_orig,ytrain,classes = V1_utils.load_dataset_tot()
     # Normalize image vectors
-    X_train = xtrain_orig / 255.
-    X_test = xtest_orig / 255.
+    X_train = xtrain_orig[:5000,:,:,[2,4,5]] / 255.
+    X_test = xtrain_orig[5000:,:,:,[2,4,5]]/255.
+    #X_test = xtest_orig / 255.
     # Reshape
-    Y_train = ytrain.T
-    Y_test = ytest.T
+    Y_train = ytrain.T[:5000]
+    Y_test = ytrain.T[5000:]
+    #Y_test = ytest.T
     #imgSize1,imgSize2,nchannel = np.shape(X_train)[1:]
 
     # 创建一个模型实体
@@ -69,23 +78,26 @@ if __name__ == "__main__":
     model_v1 = V1_utils.modelVgg19(X_train.shape[1:])
     #model_v1 = modelV1(X_train.shape[1:])
     # 编译模型（在锁层以后操作）
-    model_v1.compile("adam", "binary_crossentropy", metrics=['accuracy'],)
+    opt = tensorflow.keras.optimizers.Adam()
+    model_v1.compile(loss="binary_crossentropy", metrics=['accuracy'],optimizer=opt)
     # 训练模型
-    batch_size = 16
+    batch_size = 10
     steps_per_epoch = (np.shape(X_train)[0] + batch_size - 1) // batch_size
-    model_v1.fit_generator(generator=data_genetator(X_train[::7], Y_train[::7], batch_size),
+    model_v1.fit_generator(generator=data_generator(X_train, Y_train, batch_size),
                            steps_per_epoch=steps_per_epoch,
-                           epochs=10,
+                           epochs=5,
                            verbose=1,
-                           validation_data=(X_test[::10], Y_test[::10]))
+                           validation_data=(X_test[::10], Y_test[::10]),
+                           )
     # model_v1.fit(X_train, Y_train, epochs=20, batch_size=16,validation_data=(X_test,Y_test))
     # 评估模型
     batch_size_test = 8
-    preds = model_v1.evaluate_generator(generator=val_genetator(X_test, Y_test, batch_size_test),
-                                        verbose=1,)
+    preds = model_v1.evaluate_generator(generator=val_generator(X_test, Y_test, batch_size_test),
+                                        verbose=1)
     #警告，不用管 UserWarning: `Model.evaluate_generator` is deprecated and will be removed in a future version.Please use `Model.evaluate`, which supports generators.
 
     # preds = model_v1.evaluate(X_test, Y_test, batch_size=8, verbose=1, sample_weight=None)
     print("误差值 = " + str(preds[0]))
     print("准确度 = " + str(preds[1]))
+    cvres = model_v1.predict_generator(pre_generator(X_test,8),verbose=1)
     print("hhh")
