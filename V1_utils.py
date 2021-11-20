@@ -1,6 +1,14 @@
 import numpy as np
 import h5py
-
+from tensorflow.keras.models import Model,Sequential
+from tensorflow.keras.applications.vgg19 import VGG19
+from tensorflow.keras.applications.vgg19 import preprocess_input
+from tensorflow.keras.preprocessing import image
+import tensorflow.keras.applications.resnet50
+from tensorflow.keras import layers
+from tensorflow.keras.layers import Input, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D
+from tensorflow.keras.layers import AveragePooling2D, MaxPooling2D, Dropout, GlobalMaxPooling2D, GlobalAveragePooling2D
+from tensorflow.keras.models import Model
 
 def creat_dataset():
     datas = {}
@@ -49,6 +57,125 @@ def load_dataset(filename='data/data60to30/data60to30.h5'):
     ytest = ytest.reshape(1,len(ytest))
     classes = np.array(file['classes'][:])
     return xtrain_orig, ytrain, xtest_orig, ytest, classes
+
+def modelV1(input_shape):
+    """
+    实现一个检测CME 爆发的模型
+
+    参数：
+        input_shape - 输入的数据的维度
+    返回：
+        model - 创建的Keras的模型
+
+    """
+
+    # 你可以参考和上面的大纲
+    X_input = Input(input_shape)
+
+    # 使用0填充：X_input的周围填充0
+    X = ZeroPadding2D((3, 3))(X_input)
+
+    # 对X使用 CONV -> BN -> RELU 块
+    X = Conv2D(32, (7, 7), strides=(1, 1), name='conv0')(X)
+    X = BatchNormalization(axis=3, name='bn0')(X)
+    X = Activation('relu')(X)
+
+    # 最大值池化层
+    X = MaxPooling2D((2, 2), name='max_pool')(X)
+
+    # 降维，矩阵转化为向量 + 全连接层
+    X = Flatten()(X)
+    X = Dense(1, activation='sigmoid', name='fc')(X)
+
+    # 创建模型，讲话创建一个模型的实体，我们可以用它来训练、测试。
+    model = Model(inputs=X_input, outputs=X, name='modelV1')
+
+    return model
+
+def modelVgg19(input_shape):
+    """
+    实现一个检测CME 爆发的模型
+
+    参数：
+        input_shape - 输入的数据的维度
+    返回：
+        model - 创建的Keras的模型
+
+    """
+    X_input = Input(input_shape)
+    X = Conv2D(3, (1, 1), strides=(1, 1))(X_input)
+    keras_vgg19 = VGG19(include_top=False, weights="imagenet", input_shape=X.shape[1:])
+    vgg19_flower = Sequential()
+    vgg19_flower.add(Flatten(input_shape=keras_vgg19.output_shape[1:]))
+    vgg19_flower.add(Dense(512, activation="relu"))
+    vgg19_flower.add(Dropout(0.5))
+    vgg19_flower.add(Dense(128, activation="relu"))
+    vgg19_flower.add(Dropout(0.5))
+    vgg19_flower.add(Dense(1, activation='sigmoid'))
+    predictons = vgg19_flower(keras_vgg19(X))
+
+    model_vgg19 = Model(inputs=X_input, outputs=predictons)
+    for layer in keras_vgg19.layers:
+        layer.trainable = False
+    keras_vgg19.layers[-1].trainable = True
+    keras_vgg19.layers[-2].trainable = True
+    keras_vgg19.layers[-3].trainable = True
+    keras_vgg19.layers[-4].trainable = True
+    keras_vgg19.layers[-5].trainable = True
+    keras_vgg19.layers[-6].trainable = True
+    for x in model_vgg19.trainable_weights:
+        print(x.name)
+    print('\n')
+    for x in model_vgg19.non_trainable_weights:
+        print(x.name)
+    print('\n')
+
+    model_vgg19.summary()
+
+    return model_vgg19
+
+def modelResnet(input_shape):
+    """
+    实现一个检测CME 爆发的模型
+
+    参数：
+        input_shape - 输入的数据的维度
+    返回：
+        model - 创建的Keras的模型
+
+    """
+
+    X_input = Input(input_shape)
+    X = Conv2D(3, (1, 1), strides=(1, 1))(X_input)
+    keras_resnet = tensorflow.keras.applications.resnet50.ResNet50(include_top=False, weights="imagenet", input_shape=X.shape[1:])
+    resnet_flower = Sequential()
+    resnet_flower.add(Flatten(input_shape=keras_resnet.output_shape[1:]))
+    resnet_flower.add(Dense(512, activation="relu"))
+    resnet_flower.add(Dropout(0.5))
+    resnet_flower.add(Dense(128, activation="relu"))
+    resnet_flower.add(Dropout(0.5))
+    resnet_flower.add(Dense(1, activation='sigmoid'))
+    predictons = resnet_flower(keras_resnet(X))
+
+    model_resnet = Model(inputs=X_input, outputs=predictons)
+    for layer in keras_resnet.layers:
+        layer.trainable = False
+    keras_resnet.layers[-1].trainable = True
+    keras_resnet.layers[-2].trainable = True
+    keras_resnet.layers[-3].trainable = True
+    keras_resnet.layers[-4].trainable = True
+    keras_resnet.layers[-5].trainable = True
+    keras_resnet.layers[-6].trainable = True
+    for x in model_resnet.trainable_weights:
+        print(x.name)
+    print('\n')
+    for x in model_resnet.non_trainable_weights:
+        print(x.name)
+    print('\n')
+
+    model_resnet.summary()
+
+    return model_resnet
 
 
 if __name__ == '__main__':
