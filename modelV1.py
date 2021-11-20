@@ -16,16 +16,17 @@ import V1_utils
 
 import keras.backend as K
 K.set_image_data_format('channels_last')
+import tensorflow as tf
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'   #指定第一块GPU可用
+#os.environ["TF_GPU_ALLOCATOR"] = 'cuda_malloc_async'
+gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.6)
+config=tf.compat.v1.ConfigProto(gpu_options=gpu_options)
+session = tf.compat.v1.Session(config=config)
+
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import imshow
 
-xtrain_orig, ytrain, xtest_orig, ytest, classes = V1_utils.load_dataset()
-# Normalize image vectors
-X_train = xtrain_orig/255.
-X_test = xtest_orig/255.
-# Reshape
-Y_train = ytrain.T
-Y_test = ytest.T
 
 def modelV1(input_shape):
     """
@@ -61,14 +62,26 @@ def modelV1(input_shape):
 
     return model
 
-#创建一个模型实体
-model_v1 = modelV1(X_train.shape[1:])
-#编译模型
-model_v1.compile("adam","binary_crossentropy", metrics=['accuracy'])
-#训练模型
-model_v1.fit(X_train, Y_train, epochs=40, batch_size=2,shuffle=True)
-#评估模型
-preds = model_v1.evaluate(X_test, Y_test, batch_size=8, verbose=1, sample_weight=None)
-print ("误差值 = " + str(preds[0]))
-print ("准确度 = " + str(preds[1]))
-print("hhh")
+
+if __name__ == "__main__":
+    xtrain_orig, ytrain, xtest_orig, ytest, classes = V1_utils.load_dataset()
+    # Normalize image vectors
+    X_train = xtrain_orig / 255.
+    X_test = xtest_orig / 255.
+    # Reshape
+    Y_train = ytrain.T
+    Y_test = ytest.T
+
+    # 创建一个模型实体
+    model_v1 = modelV1(X_train.shape[1:])
+    # 编译模型
+    model_v1.compile("adam", "binary_crossentropy", metrics=['accuracy'])
+    # 训练模型
+    model_v1.fit(X_train, Y_train, epochs=40, batch_size=1)
+    # 评估模型
+    preds = model_v1.evaluate(X_test, Y_test, batch_size=1, verbose=1, sample_weight=None)
+    print("误差值 = " + str(preds[0]))
+    print("准确度 = " + str(preds[1]))
+    print("hhh")
+
+
