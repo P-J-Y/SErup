@@ -584,6 +584,7 @@ def getArInfoWithCmeInfo(cmeinfo,
                          fmt="%Y-%m-%dT%H:%MZ"):
     tstart = datetime.datetime.strptime(cmeinfo["startTime"], fmt)
     ARresults = getArs(tstart, time_earlier1=time_earlier1, time_earlier2=time_earlier2)
+    assert ARresults.file_num>0 , "no ar founded at all"
     arInfo = deleteSmallARs(ARresults, threshold=ar_threshold)
     cache = tstart
     return arInfo, cache
@@ -890,7 +891,7 @@ def getArArray(posres,
         :return:
         '''
         dataShape = np.shape(submapData)
-        assert len(dataShape)==2
+        assert len(dataShape)==2, "data dims error"
         bigSize = max(dataShape)
         smallSize = min(dataShape)
         if bigSize==smallSize:
@@ -998,7 +999,56 @@ ar_threshold = (100,6)
 POS = []
 NEG = []
 
-for CEidx in range(100, 200):
+for CEidx in range(600, 700):
+    theCmeInfo = cmelist[CEidx]
+
+    try:
+        theArInfo, cache = getArInfoWithCmeInfo(theCmeInfo,
+                                                time_earlier1=ar_search_t1,
+                                                time_earlier2=ar_search_t2,
+                                                ar_threshold=ar_threshold,
+                                                fmt="%Y-%m-%dT%H:%MZ")
+        tstart = cache
+        CeCoordStr = theCmeInfo["sourceLocation"]
+        CE_coord = getCmeCoord(breakCoordStr(CeCoordStr))
+        dists = getDists(theArInfo, CE_coord, tstart)
+        minDist, minidx, matchFlag = arCmeMatch(dists, theArInfo)
+        print("cme ar idx = {}".format(minidx))
+        print("matchFlag={}".format(matchFlag))
+        if matchFlag >= 1:
+            raise ValueError("matchFlag>=1, cme's source ar is not found, try next CEidx", matchFlag)
+        getArArray(POS,
+                   NEG,
+                   tstart,
+                   theArInfo,
+                   minidx,
+                   time_earlier1=data_t1,
+                   time_earlier2=data_t2,
+                   freq=freq,
+                   observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                   instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI"),
+                   measurements=("94", "171", "193", "211", "304", "magnetogram"),
+                   imgSize=256,
+                   )
+
+    except ValueError:
+        print("CMEidx: {} cme coordstr error, or no AR found. goto next CEidx".format(CEidx))
+        continue
+    except AssertionError:
+        print("CMEidx: {} 可能没找到合适的AR，换到下一个CME".format(CEidx))
+        continue
+    except RuntimeError:
+        print("Don't know what happened, maybe it's the internet?")
+        continue
+
+
+filename='data/dataset7.npz'
+np.savez(filename,pos=POS,neg=NEG)
+
+POS = []
+NEG = []
+
+for CEidx in range(700, len(cmelist)):
     theCmeInfo = cmelist[CEidx]
 
     try:
@@ -1040,9 +1090,8 @@ for CEidx in range(100, 200):
         print("Don't know what happened, may it's the internet?")
         continue
 
-filename='data/dataset2.npz'
+filename='data/dataset8.npz'
 np.savez(filename,pos=POS,neg=NEG)
-
 # getArArray(POS,
 #            tstart,
 #            CE_coord,
