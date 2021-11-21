@@ -370,9 +370,9 @@ if __name__ == '__main__':
     #creat_dataset()
     #creat_dataset_tot()
     #creat_dataset_single()
-    #xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset()
+    xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset()
     #xtrain_orig, ytrain, classes = load_dataset_tot('data/data60/data60tot.h5')
-    model = modelV1([256,256,6])
-    model.summary()
+    #model = modelV1([256,256,6])
+    #model.summary()
     print("test down")
 

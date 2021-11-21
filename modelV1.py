@@ -90,12 +90,21 @@ if __name__ == "__main__":
     batch_size = 16
     steps_per_epoch = (np.shape(X_train)[0] + batch_size - 1) // batch_size
     metrics = V1_utils.Metrics(test_data=(X_test[::20], Y_test[::20]),train_data=(X_train[::100],Y_train[::100]))
+
+    from sklearn.utils import class_weight
+    import pandas as pd
+    class_weight = class_weight.compute_class_weight(class_weight='balanced',
+                                                     classes=classes,
+                                                     y=Y_train[:,0])
+    cw = dict(enumerate(class_weight))
+
     model_v1.fit_generator(generator=data_generator(X_train, Y_train, batch_size),
                            steps_per_epoch=steps_per_epoch,
                            epochs=8,
                            verbose=1,
                            validation_data=(X_test[::20], Y_test[::20]),
-                           callbacks=[metrics]
+                           callbacks=[metrics],
+                           class_weight=cw,
                            )
 
     #model_v1.fit(X_train, Y_train, epochs=10, batch_size=8,validation_data=(X_test[::2],Y_test[::2]),callbacks = [metrics],)
