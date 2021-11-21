@@ -77,18 +77,22 @@ if __name__ == "__main__":
     # 创建一个模型实体
     #model_v1 = V1_utils.modelResnet(X_train.shape[1:])
     #model_v1 = V1_utils.modelVgg19(X_train.shape[1:])
-    model_v1 = V1_utils.modelV1(X_train.shape[1:])
+
+    lambda_l2 = 0.05
+    lr = 0.001
+
+    model_v1 = V1_utils.modelV1(X_train.shape[1:],lambda_l2=lambda_l2)
     # 编译模型（在锁层以后操作）
-    opt = tensorflow.keras.optimizers.Adam(lr=0.001)
+    opt = tensorflow.keras.optimizers.Adam(lr=lr)
 
     model_v1.compile(loss="binary_crossentropy", metrics=['accuracy'],optimizer=opt)
     # 训练模型
-    batch_size = 8
+    batch_size = 16
     steps_per_epoch = (np.shape(X_train)[0] + batch_size - 1) // batch_size
     metrics = V1_utils.Metrics(test_data=(X_test[::20], Y_test[::20]),train_data=(X_train[::100],Y_train[::100]))
     model_v1.fit_generator(generator=data_generator(X_train, Y_train, batch_size),
                            steps_per_epoch=steps_per_epoch,
-                           epochs=4,
+                           epochs=8,
                            verbose=1,
                            validation_data=(X_test[::20], Y_test[::20]),
                            callbacks=[metrics]

@@ -114,7 +114,7 @@ def load_dataset_tot(filename='data/data60to30/data60to30tot.h5'):
     classes = np.array(file['classes'][:])
     return xtrain_orig, ytrain, classes
 
-def modelV1(input_shape):
+def modelV1(input_shape,lambda_l2=0.1):
     """
     实现一个检测CME 爆发的模型
 
@@ -125,7 +125,6 @@ def modelV1(input_shape):
 
     """
 
-    lambda_l2 = 0.3
     # 你可以参考和上面的大纲
     X_input = Input(input_shape)
 
@@ -133,39 +132,66 @@ def modelV1(input_shape):
     #X = ZeroPadding2D((3, 3))(X_input)
 
     # 对X使用 CONV -> BN -> RELU 块
-    X = Conv2D(32, (9, 9), strides=(2, 2), name='conv0',kernel_regularizer=tfkreg.l2(lambda_l2))(X_input)
+    X = Conv2D(96, (11, 11), strides=(4, 4), name='conv0',
+               kernel_regularizer=tfkreg.l2(lambda_l2),
+               )(X_input,)
     X = BatchNormalization(axis=3, name='bn0')(X)
     X = Activation('relu')(X)
 
     # 最大值池化层
-    X = MaxPooling2D((2, 2), name='max_pool0')(X)
+    X = MaxPooling2D((3, 3), name='max_pool0',strides=(2,2))(X)
+    X = Dropout(0.3)(X)
     #X = Dropout(0.5)(X)
 
     # 使用0填充：X_input的周围填充0
-    #X = ZeroPadding2D((1, 1))(X_input)
+    X = ZeroPadding2D((2, 2))(X)
 
     # 对X使用 CONV -> BN -> RELU 块
-    X = Conv2D(64, (3, 3), strides=(2, 2), name='conv1',kernel_regularizer=tfkreg.l2(lambda_l2))(X)
+    X = Conv2D(256, (5, 5), strides=(1, 1), name='conv1',
+               kernel_regularizer=tfkreg.l2(lambda_l2),
+               )(X)
     X = BatchNormalization(axis=3, name='bn1')(X)
     X = Activation('relu')(X)
 
     # 最大值池化层
-    X = MaxPooling2D((4, 4), name='max_pool1')(X)
+    X = MaxPooling2D((3, 3), name='max_pool1',strides=(2,2))(X)
+    X = Dropout(0.3)(X)
     #X = Dropout(0.5)(X)
 
     # 对X使用 CONV -> BN -> RELU 块
-    X = Conv2D(128, (3, 3), strides=(3, 3), name='conv2', kernel_regularizer=tfkreg.l2(lambda_l2))(X)
+    X = ZeroPadding2D((1, 1))(X)
+    X = Conv2D(384, (3, 3), strides=(1, 1), name='conv2',
+               kernel_regularizer=tfkreg.l2(lambda_l2),
+               )(X)
     X = BatchNormalization(axis=3, name='bn2')(X)
     X = Activation('relu')(X)
 
+    # 对X使用 CONV -> BN -> RELU 块
+    X = ZeroPadding2D((1, 1))(X)
+    X = Conv2D(384, (3, 3), strides=(1, 1), name='conv3',
+               kernel_regularizer=tfkreg.l2(lambda_l2),
+               )(X)
+    X = BatchNormalization(axis=3, name='bn3')(X)
+    X = Activation('relu')(X)
+    X = Dropout(0.3)(X)
+
+    # 对X使用 CONV -> BN -> RELU 块
+    X = Conv2D(256, (3, 3), strides=(1, 1), name='conv4',
+               kernel_regularizer=tfkreg.l2(lambda_l2),
+               )(X)
+    X = BatchNormalization(axis=3, name='bn4')(X)
+    X = Activation('relu')(X)
+
     # 最大值池化层
-    X = MaxPooling2D((2, 2), name='max_pool2')(X)
+    X = MaxPooling2D((3, 3), name='max_pool2',strides=(2,2))(X)
     # X = Dropout(0.5)(X)
 
     # 降维，矩阵转化为向量 + 全连接层
     X = Flatten()(X)
-    X = Dense(1, activation='sigmoid', name='fc1',kernel_regularizer=tfkreg.l2(lambda_l2))(X)
-
+    #X = Dense(2048, activation='relu', name='fc1',kernel_regularizer=tfkreg.l2(lambda_l2))(X)
+    X = Dense(1, activation='sigmoid', name='fc2',
+              kernel_regularizer=tfkreg.l2(lambda_l2),
+              )(X)
     # 创建模型，讲话创建一个模型的实体，我们可以用它来训练、测试。
     model = Model(inputs=X_input, outputs=X, name='modelV1')
 
@@ -345,6 +371,8 @@ if __name__ == '__main__':
     #creat_dataset_tot()
     #creat_dataset_single()
     #xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset()
-    xtrain_orig, ytrain, classes = load_dataset_tot('data/data60/data60tot.h5')
+    #xtrain_orig, ytrain, classes = load_dataset_tot('data/data60/data60tot.h5')
+    model = modelV1([256,256,6])
+    model.summary()
     print("test down")
 
