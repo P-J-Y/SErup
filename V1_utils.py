@@ -1,5 +1,6 @@
 import numpy as np
 import h5py
+import tensorflow as tf
 from tensorflow.keras.models import Model,Sequential
 from tensorflow.keras.applications.vgg19 import VGG19
 from tensorflow.keras.applications.vgg19 import preprocess_input
@@ -9,6 +10,8 @@ from tensorflow.keras import layers
 from tensorflow.keras.layers import Input, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D
 from tensorflow.keras.layers import AveragePooling2D, MaxPooling2D, Dropout, GlobalMaxPooling2D, GlobalAveragePooling2D
 from tensorflow.keras.models import Model
+import tensorflow.keras.backend as K
+import tensorflow.keras.regularizers as tfkreg
 
 def creat_dataset():
     datas = {}
@@ -75,6 +78,23 @@ def creat_dataset_tot():
     file.close()
     # return xtrain_orig,ytrain,xtest_orig,ytest,classes
 
+def creat_dataset_single():
+    dataset = np.load("data/data60/dataset_60.npz")
+    pos = dataset['pos'].astype(np.float32)
+    neg = dataset['neg'].astype(np.float32)
+    xtrain_orig = np.concatenate((pos,neg),axis=0)
+    ytrain = np.append(np.ones(np.shape(pos)[0], dtype=int),
+                       np.zeros(np.shape(neg)[0], dtype=int))
+    randTrainPerm = np.random.choice(np.arange(len(ytrain)), size=len(ytrain), replace=False)
+    xtrain_orig = xtrain_orig[randTrainPerm]
+    ytrain = ytrain[randTrainPerm]
+    classes = [0, 1]
+    file = h5py.File('data/data60/data60tot.h5', 'w')
+    file.create_dataset('xtrain_orig', data=xtrain_orig)
+    file.create_dataset('ytrain', data=ytrain)
+    file.create_dataset('classes', data=classes)
+    file.close()
+
 def load_dataset(filename='data/data60to30/data60to30.h5'):
     file = h5py.File(filename, 'r')
     xtrain_orig = np.array(file['xtrain_orig'][:])
@@ -105,23 +125,46 @@ def modelV1(input_shape):
 
     """
 
+    lambda_l2 = 0.3
     # 你可以参考和上面的大纲
     X_input = Input(input_shape)
 
     # 使用0填充：X_input的周围填充0
-    X = ZeroPadding2D((3, 3))(X_input)
+    #X = ZeroPadding2D((3, 3))(X_input)
 
     # 对X使用 CONV -> BN -> RELU 块
-    X = Conv2D(32, (7, 7), strides=(1, 1), name='conv0')(X)
+    X = Conv2D(32, (9, 9), strides=(2, 2), name='conv0',kernel_regularizer=tfkreg.l2(lambda_l2))(X_input)
     X = BatchNormalization(axis=3, name='bn0')(X)
     X = Activation('relu')(X)
 
     # 最大值池化层
-    X = MaxPooling2D((2, 2), name='max_pool')(X)
+    X = MaxPooling2D((2, 2), name='max_pool0')(X)
+    #X = Dropout(0.5)(X)
+
+    # 使用0填充：X_input的周围填充0
+    #X = ZeroPadding2D((1, 1))(X_input)
+
+    # 对X使用 CONV -> BN -> RELU 块
+    X = Conv2D(64, (3, 3), strides=(2, 2), name='conv1',kernel_regularizer=tfkreg.l2(lambda_l2))(X)
+    X = BatchNormalization(axis=3, name='bn1')(X)
+    X = Activation('relu')(X)
+
+    # 最大值池化层
+    X = MaxPooling2D((4, 4), name='max_pool1')(X)
+    #X = Dropout(0.5)(X)
+
+    # 对X使用 CONV -> BN -> RELU 块
+    X = Conv2D(128, (3, 3), strides=(3, 3), name='conv2', kernel_regularizer=tfkreg.l2(lambda_l2))(X)
+    X = BatchNormalization(axis=3, name='bn2')(X)
+    X = Activation('relu')(X)
+
+    # 最大值池化层
+    X = MaxPooling2D((2, 2), name='max_pool2')(X)
+    # X = Dropout(0.5)(X)
 
     # 降维，矩阵转化为向量 + 全连接层
     X = Flatten()(X)
-    X = Dense(1, activation='sigmoid', name='fc')(X)
+    X = Dense(1, activation='sigmoid', name='fc1',kernel_regularizer=tfkreg.l2(lambda_l2))(X)
 
     # 创建模型，讲话创建一个模型的实体，我们可以用它来训练、测试。
     model = Model(inputs=X_input, outputs=X, name='modelV1')
@@ -153,6 +196,8 @@ def modelVgg19(input_shape):
         layer.trainable = False
     keras_vgg19.layers[-1].trainable = True
     keras_vgg19.layers[-2].trainable = True
+    keras_vgg19.layers[-3].trainable = True
+    keras_vgg19.layers[-4].trainable = True
 
 
     # for i in range(0,12):
@@ -215,10 +260,91 @@ def modelResnet(input_shape):
     return model_resnet
 
 
+
+from keras.callbacks import Callback
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+
+
+class Metrics(Callback):
+
+    def __init__(self, test_data,train_data):
+        # Should be the label encoding of your classes
+        self.test_data = test_data
+        self.train_data = train_data
+
+    def on_train_begin(self, logs={}):
+        self.val_f1s = []
+        self.val_recalls = []
+        self.val_precisions = []
+        self.train_f1s = []
+        self.train_recalls = []
+        self.train_precisions = []
+
+    def on_epoch_end(self, epoch, logs={}):
+        val_predict = (np.asarray(self.model.predict(self.test_data[0]))).round()
+        val_targ = self.test_data[1]
+        _val_f1 = f1_score(val_targ, val_predict)
+        _val_recall = recall_score(val_targ, val_predict)
+        _val_precision = precision_score(val_targ, val_predict)
+        self.val_f1s.append(_val_f1)
+        self.val_recalls.append(_val_recall)
+        self.val_precisions.append(_val_precision)
+        train_predict = (np.asarray(self.model.predict(self.train_data[0]))).round()
+        train_targ = self.train_data[1]
+        _train_f1 = f1_score(train_targ, train_predict)
+        _train_recall = recall_score(train_targ, train_predict)
+        _train_precision = precision_score(train_targ, train_predict)
+        self.train_f1s.append(_train_f1)
+        self.train_recalls.append(_train_recall)
+        self.train_precisions.append(_train_precision)
+        print("— val_f1: % f — val_precision: % f — val_recall % f \n" % (_val_f1, _val_precision, _val_recall))
+        print("— train_f1: % f — train_precision: % f — train_recall % f" % (_train_f1, _train_precision, _train_recall))
+        return
+
+
+def precision(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+
+def recall(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
+
+
+def fbeta_score(y_true, y_pred, beta=1):
+    y_true = np.float32(y_true)
+    y_pred = np.float32(y_pred)
+    if beta < 0:
+        raise ValueError('The lowest choosable beta is zero (only precision).')
+
+    # If there are no true positives, fix the F score at 0 like sklearn.
+    if K.sum(K.round(K.clip(y_true, 0, 1))) == 0:
+        return 0
+
+    p = precision(y_true, y_pred)
+    r = recall(y_true, y_pred)
+    bb = beta ** 2
+    fbeta_score = (1 + bb) * (p * r) / (bb * p + r + K.epsilon())
+    return fbeta_score
+
+
+def fmeasure(y_true, y_pred):
+    return fbeta_score(y_true, y_pred, beta=1)
+
+
+
+
+
 if __name__ == '__main__':
     #creat_dataset()
     #creat_dataset_tot()
+    #creat_dataset_single()
     #xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset()
-    xtrain_orig, ytrain, classes = load_dataset_tot()
+    xtrain_orig, ytrain, classes = load_dataset_tot('data/data60/data60tot.h5')
     print("test down")
 

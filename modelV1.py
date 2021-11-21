@@ -15,8 +15,8 @@ from IPython.display import SVG
 from tensorflow.python.keras.utils.vis_utils import model_to_dot
 from tensorflow.python.keras.utils.vis_utils import plot_model
 import V1_utils
-
 import tensorflow.keras.backend as K
+
 
 K.set_image_data_format('channels_last')
 # import os
@@ -61,37 +61,42 @@ def pre_generator(xdata,batch_size):
 ###################### Training #####################
 
 if __name__ == "__main__":
-    #xtrain_orig, ytrain, xtest_orig, ytest, classes = V1_utils.load_dataset()
-    xtrain_orig,ytrain,classes = V1_utils.load_dataset_tot()
+    xtrain_orig, ytrain, xtest_orig, ytest, classes = V1_utils.load_dataset()
+    #xtrain_orig,ytrain,classes = V1_utils.load_dataset_tot('data/data60/data60tot.h5')
+    #xtrain_orig, ytrain, classes = V1_utils.load_dataset_tot()
     # Normalize image vectors
-    X_train = xtrain_orig[:5000,:,:,[2,4,5]] / 255.
-    X_test = xtrain_orig[5000:,:,:,[2,4,5]]/255.
+    X_train = xtrain_orig / 255.
+    X_test = xtest_orig/255.
     #X_test = xtest_orig / 255.
     # Reshape
-    Y_train = ytrain.T[:5000]
-    Y_test = ytrain.T[5000:]
+    Y_train = ytrain.T
+    Y_test = ytest.T
     #Y_test = ytest.T
     #imgSize1,imgSize2,nchannel = np.shape(X_train)[1:]
 
     # 创建一个模型实体
     #model_v1 = V1_utils.modelResnet(X_train.shape[1:])
-    model_v1 = V1_utils.modelVgg19(X_train.shape[1:])
-    #model_v1 = modelV1(X_train.shape[1:])
+    #model_v1 = V1_utils.modelVgg19(X_train.shape[1:])
+    model_v1 = V1_utils.modelV1(X_train.shape[1:])
     # 编译模型（在锁层以后操作）
-    opt = tensorflow.keras.optimizers.Adam()
+    opt = tensorflow.keras.optimizers.Adam(lr=0.001)
+
     model_v1.compile(loss="binary_crossentropy", metrics=['accuracy'],optimizer=opt)
     # 训练模型
-    batch_size = 10
+    batch_size = 8
     steps_per_epoch = (np.shape(X_train)[0] + batch_size - 1) // batch_size
+    metrics = V1_utils.Metrics(test_data=(X_test[::20], Y_test[::20]),train_data=(X_train[::100],Y_train[::100]))
     model_v1.fit_generator(generator=data_generator(X_train, Y_train, batch_size),
                            steps_per_epoch=steps_per_epoch,
-                           epochs=5,
+                           epochs=4,
                            verbose=1,
-                           validation_data=(X_test[::10], Y_test[::10]),
+                           validation_data=(X_test[::20], Y_test[::20]),
+                           callbacks=[metrics]
                            )
-    # model_v1.fit(X_train, Y_train, epochs=20, batch_size=16,validation_data=(X_test,Y_test))
+
+    #model_v1.fit(X_train, Y_train, epochs=10, batch_size=8,validation_data=(X_test[::2],Y_test[::2]),callbacks = [metrics],)
     # 评估模型
-    batch_size_test = 8
+    batch_size_test = 4
     preds = model_v1.evaluate_generator(generator=val_generator(X_test, Y_test, batch_size_test),
                                         verbose=1)
     #警告，不用管 UserWarning: `Model.evaluate_generator` is deprecated and will be removed in a future version.Please use `Model.evaluate`, which supports generators.
@@ -99,5 +104,7 @@ if __name__ == "__main__":
     # preds = model_v1.evaluate(X_test, Y_test, batch_size=8, verbose=1, sample_weight=None)
     print("误差值 = " + str(preds[0]))
     print("准确度 = " + str(preds[1]))
-    cvres = model_v1.predict_generator(pre_generator(X_test,8),verbose=1)
+    cvres = model_v1.predict_generator(pre_generator(X_test,4),verbose=1)
+    cvf1s = V1_utils.fmeasure(Y_test,cvres)
+    print(cvf1s)
     print("hhh")
