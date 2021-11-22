@@ -1008,7 +1008,7 @@ ar_threshold = (100,6)
 POS = []
 NEG = []
 
-for CEidx in range(100):
+for CEidx in range(500,600):
     theCmeInfo = cmelist[CEidx]
 
     try:
@@ -1047,11 +1047,12 @@ for CEidx in range(100):
         print("CMEidx: {} 可能没找到合适的AR，换到下一个CME".format(CEidx))
         continue
     except RuntimeError:
-        print("Don't know what happened, maybe it's the internet?")
+        print("CMEidx: {} Don't know what happened, maybe it's the internet?".format(CEidx))
+        np.savez("data/data24hr_1hr/base1.npz", pos=POS, neg=NEG)
         continue
 
 
-filename= 'data/data24hr_1hr/dataset0.npz'
+filename= 'data/data24hr_1hr/dataset5.npz'
 np.savez(filename,pos=POS,neg=NEG)
 
 # getArArray(POS,
