@@ -1008,7 +1008,7 @@ ar_threshold = (100,6)
 POS = []
 NEG = []
 
-for CEidx in range(500,600):
+for CEidx in range(100,200):
     theCmeInfo = cmelist[CEidx]
 
     try:
@@ -1052,7 +1052,7 @@ for CEidx in range(500,600):
         continue
 
 
-filename= 'data/data24hr_1hr/dataset5.npz'
+filename= 'data/data24hr_1hr/dataset1.npz'
 np.savez(filename,pos=POS,neg=NEG)
 
 # getArArray(POS,
