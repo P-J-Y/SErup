@@ -16,14 +16,14 @@ import tensorflow.keras.regularizers as tfkreg
 def creat_dataset():
     datas = {}
     for i in range(8):
-        filename = 'data/data60to30/dataset{}.npz'.format(i + 1)
+        filename = 'data/data24hr_1hr/dataset{}.npz'.format(i)
         dataset = np.load(filename)
-        datas["pos{}".format(i)] = dataset['pos'].astype(np.float32)
+        datas["pos{}".format(i)] = dataset['pos'][:,:,:,[]].astype(np.float32)
         datas["neg{}".format(i)] = dataset['neg'].astype(np.float32)
 
     postrain = datas["pos0"]
     negtrain = datas["neg0"]
-    for i in range(1, 6):
+    for i in range(6):
         postrain = np.concatenate((postrain, datas["pos{}".format(i)]), axis=0)
         negtrain = np.concatenate((negtrain, datas["neg{}".format(i)]), axis=0)
     postest = np.concatenate((datas["pos6"], datas["pos7"]), axis=0)
@@ -40,7 +40,7 @@ def creat_dataset():
     xtrain_orig = xtrain_orig[randTrainPerm]
     ytrain = ytrain[randTrainPerm]
     classes = [0,1]
-    file = h5py.File('data/data60to30/data60to30.h5', 'w')
+    file = h5py.File('data/data24hr_1hr/data24hr_1hr.h5', 'w')
     file.create_dataset('xtrain_orig', data=xtrain_orig)
     file.create_dataset('ytrain', data=ytrain)
     file.create_dataset('xtest_orig', data=xtest_orig)
@@ -155,7 +155,7 @@ def modelV1(input_shape,lambda_l2=0.1):
 
     # 最大值池化层
     X = MaxPooling2D((3, 3), name='max_pool1',strides=(2,2))(X)
-    X = Dropout(0.3)(X)
+    #X = Dropout(0.3)(X)
     #X = Dropout(0.5)(X)
 
     # 对X使用 CONV -> BN -> RELU 块
@@ -173,7 +173,7 @@ def modelV1(input_shape,lambda_l2=0.1):
                )(X)
     X = BatchNormalization(axis=3, name='bn3')(X)
     X = Activation('relu')(X)
-    X = Dropout(0.3)(X)
+    #X = Dropout(0.3)(X)
 
     # 对X使用 CONV -> BN -> RELU 块
     X = Conv2D(256, (3, 3), strides=(1, 1), name='conv4',
@@ -356,7 +356,8 @@ def fbeta_score(y_true, y_pred, beta=1):
     r = recall(y_true, y_pred)
     bb = beta ** 2
     fbeta_score = (1 + bb) * (p * r) / (bb * p + r + K.epsilon())
-    return fbeta_score
+    cache = (p,r)
+    return fbeta_score,cache
 
 
 def fmeasure(y_true, y_pred):
@@ -370,7 +371,7 @@ if __name__ == '__main__':
     #creat_dataset()
     #creat_dataset_tot()
     #creat_dataset_single()
-    xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset()
+    xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset(filename='data/data24hr_1hr/data24hr_1hr.h5')
     #xtrain_orig, ytrain, classes = load_dataset_tot('data/data60/data60tot.h5')
     #model = modelV1([256,256,6])
     #model.summary()

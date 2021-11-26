@@ -61,12 +61,15 @@ def pre_generator(xdata,batch_size):
 ###################### Training #####################
 
 if __name__ == "__main__":
-    xtrain_orig, ytrain, xtest_orig, ytest, classes = V1_utils.load_dataset()
+    #xtrain_orig, ytrain, xtest_orig, ytest, classes = V1_utils.load_dataset(filename='data/data24hr_1hr/data24hr_1hr.h5')
+    xtrain_orig, ytrain, xtest_orig, ytest, classes = V1_utils.load_dataset(filename='data/data60to30/data60to30.h5')
     #xtrain_orig,ytrain,classes = V1_utils.load_dataset_tot('data/data60/data60tot.h5')
     #xtrain_orig, ytrain, classes = V1_utils.load_dataset_tot()
     # Normalize image vectors
+    # X_train = xtrain_orig[:,:,:,[1,5,6]] / 255.
+    # X_test = xtest_orig[:,:,:,[1,5,6]] / 255.
     X_train = xtrain_orig / 255.
-    X_test = xtest_orig/255.
+    X_test = xtest_orig / 255.
     #X_test = xtest_orig / 255.
     # Reshape
     Y_train = ytrain.T
@@ -78,10 +81,12 @@ if __name__ == "__main__":
     #model_v1 = V1_utils.modelResnet(X_train.shape[1:])
     #model_v1 = V1_utils.modelVgg19(X_train.shape[1:])
 
-    lambda_l2 = 0.05
-    lr = 0.001
+    lambda_l2 = 0.04
+    lr = 0.00005
 
     model_v1 = V1_utils.modelV1(X_train.shape[1:],lambda_l2=lambda_l2)
+    plot_model(model_v1, to_file='model.png')
+    SVG(model_to_dot(model_v1).create(prog='dot', format='svg'))
     # 编译模型（在锁层以后操作）
     opt = tensorflow.keras.optimizers.Adam(lr=lr)
 
@@ -89,7 +94,7 @@ if __name__ == "__main__":
     # 训练模型
     batch_size = 16
     steps_per_epoch = (np.shape(X_train)[0] + batch_size - 1) // batch_size
-    metrics = V1_utils.Metrics(test_data=(X_test[::20], Y_test[::20]),train_data=(X_train[::100],Y_train[::100]))
+    metrics = V1_utils.Metrics(test_data=(X_test[::10], Y_test[::10]),train_data=(X_train[::100],Y_train[::100]))
 
     from sklearn.utils import class_weight
     import pandas as pd
@@ -98,14 +103,20 @@ if __name__ == "__main__":
                                                      y=Y_train[:,0])
     cw = dict(enumerate(class_weight))
 
-    model_v1.fit_generator(generator=data_generator(X_train, Y_train, batch_size),
+    history=model_v1.fit_generator(generator=data_generator(X_train, Y_train, batch_size),
                            steps_per_epoch=steps_per_epoch,
-                           epochs=8,
+                           epochs=30,
                            verbose=1,
                            validation_data=(X_test[::20], Y_test[::20]),
                            callbacks=[metrics],
                            class_weight=cw,
                            )
+    plt.figure()
+    plt.plot(history.history['loss'], 'b', label='Training loss')
+    plt.plot(history.history['val_loss'], 'r', label='Validation val_loss')
+    plt.title('Traing and Validation loss')
+    plt.legend()
+    plt.savefig('figure/log/loss.jpg')
 
     #model_v1.fit(X_train, Y_train, epochs=10, batch_size=8,validation_data=(X_test[::2],Y_test[::2]),callbacks = [metrics],)
     # 评估模型
@@ -118,6 +129,7 @@ if __name__ == "__main__":
     print("误差值 = " + str(preds[0]))
     print("准确度 = " + str(preds[1]))
     cvres = model_v1.predict_generator(pre_generator(X_test,4),verbose=1)
-    cvf1s = V1_utils.fmeasure(Y_test,cvres)
-    print(cvf1s)
+    cvf1s,cache = V1_utils.fmeasure(Y_test,cvres)
+    p,r = cache
+    print("f1 = {}, precision = {}, recall = {}".format(cvf1s,p,r))
     print("hhh")
