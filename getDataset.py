@@ -60,8 +60,8 @@ CEresults = getCmes(tstart, tend)
 
 def getArs(CE_tstart, time_earlier1=30, time_earlier2=0, event_type='AR'):
     '''
-    
-    :param CEresults: result from getCmes 
+
+    :param CEresults: result from getCmes
     :param CEidx: the index of the cme event
     :param time_earlier1: time earlier from cme's start time, to start searching for ARs
     :param time_earlier2: time earlier from cme's start time, to end searching for ARs
@@ -93,10 +93,10 @@ ARresults,cache = getArs(CEresults)
 
 def getDists(arInfo, CE_coord, CE_tstart):
     '''
-    
-    :param ARresults: 
-    :param cache: 
-    :return: 
+
+    :param ARresults:
+    :param cache:
+    :return:
     '''
     # hv = HelioviewerClient()
     # CE_tstart, time1, time2 = cache
@@ -720,7 +720,7 @@ def getCmeFilm(cmeidx,
                        )
 
 
-'''    
+'''
 cmelistpath='data/cmelist.json'
 file = open(cmelistpath,'r',encoding='utf-8')
 cmelist = json.load(file)
@@ -1054,6 +1054,7 @@ for CEidx in range(500,600):
 
 filename= 'data/data24hr_1hr/dataset5.npz'
 np.savez(filename,pos=POS,neg=NEG)
+
 
 # getArArray(POS,
 #            tstart,
