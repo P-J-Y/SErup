@@ -364,7 +364,7 @@ def fbeta_score(y_true, y_pred, beta=1):
 def fmeasure(y_true, y_pred):
     return fbeta_score(y_true, y_pred, beta=1)
 
-def testEvent(model,xtest,ytest,):
+def testEvent(model,xtest,ytest,figname='1'):
     '''
     plot testevent (AR or global)
     :param model:
@@ -377,9 +377,9 @@ def testEvent(model,xtest,ytest,):
     plt.figure()
     nc = xtest.shape[-1]
     for idx in range(nc):
-        plt.subplot((nc+1)//2,2,idx)
-        plt.imshow(xtest[:,:,idx])
-    plt.save("figure/test/1.png")
+        plt.subplot((nc+1)//2,2,idx+1)
+        plt.imshow(xtest[0,:,:,idx])
+    plt.savefig("figure/test/{}.jpg".format(figname))
     return ypre,ytest
 
 
@@ -389,15 +389,18 @@ if __name__ == '__main__':
     #creat_dataset()
     #creat_dataset_tot()
     #creat_dataset_single()
-    xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset(filename='data/data24hr_1hr/data24hr_1hr.h5')
+    xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset(filename='data/data60to30/data60to30.h5')
     del xtrain_orig
     del ytrain
     #Y_train = ytrain.T
     X_test = xtest_orig / 255.
     Y_test = ytest.T
-    model = tensorflow.keras.models.load_model('model/v1/model_v1_1.h5')
-    testidx = 1
-    ypre,ytest = testEvent(model,X_test[testidx,:,:,:],Y_test[testidx])
+    model = tensorflow.keras.models.load_model('model/v1/model_v1_3.h5')
+    testidx = 69
+    ypre,ytest = testEvent(model,X_test[testidx,None,:,:,:],Y_test[testidx],figname=testidx)
+    # cvres = model.predict(X_test, verbose=1)
+    # cvf1s, cache = fmeasure(Y_test, cvres)
+    # p, r = cache
     #xtrain_orig, ytrain, classes = load_dataset_tot('data/data60/data60tot.h5')
     #model = modelV1([256,256,6])
     #model.summary()

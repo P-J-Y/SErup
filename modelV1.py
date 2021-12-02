@@ -84,6 +84,7 @@ if __name__ == "__main__":
     #model_v1 = V1_utils.modelVgg19(X_train.shape[1:])
 
 ############################################# modelV1 ######################################
+
     # lambda_l2 = 0.04
     # lr = 0.00005
     #
@@ -190,8 +191,16 @@ def trainAmodel(params):
     print("f1 = {}, precision = {}, recall = {}".format(cvf1s, p, r))
     if cvf1s>f1:
         f1 = cvf1s
-        model_v1.save('model/v1/model_v1_3.h5')
+        model_v1.save('model/v1/model_v1_4.h5')
         print(f1)
+        plt.figure()
+        plt.plot(history.history['loss'], 'b', label='Training loss')
+        plt.plot(history.history['val_loss'], 'r', label='Validation val_loss')
+        plt.title('Traing and Validation loss')
+        plt.legend()
+        plt.xlabel('epoch')
+        plt.ylabel('loss')
+        plt.savefig('figure/log/loss.jpg')
     return {
         'loss':-cvf1s,
         'status':STATUS_OK
@@ -200,7 +209,7 @@ def trainAmodel(params):
 trials = Trials()
 best = fmin(trainAmodel, space, algo=tpe.suggest, max_evals=50, trials=trials)
 
-filename= 'model/v1/log_v1_3.npz'
+filename= 'model/v1/log_v1_4.npz'
 np.savez(filename,trails=trials,best=best)
 
 print('best')
@@ -216,11 +225,10 @@ for trialidx in range(trialNum):
     lrs[trialidx] = thevals['lr'][0]
     losses[trialidx] = trials.trials[trialidx]['result']['loss']
 
-import matplotlib.pyplot as plt
 plt.figure()
 plt.scatter(np.log(lrs),np.log(l2s),c=losses,cmap='jet')
 plt.xlabel('ln[lr]')
 plt.ylabel('ln[λ]')
 plt.title('loss')
 plt.colorbar()
-plt.show()
+plt.savefig('model/v1/hyparams_v1_4.jpg')
