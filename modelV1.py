@@ -173,7 +173,7 @@ def trainAmodel(params):
     history = model_v1.fit_generator(generator=data_generator(X_train, Y_train, params['batch_size']),
                                      steps_per_epoch=steps_per_epoch,
                                      epochs=30,
-                                     verbose=1,
+                                     verbose=0,
                                      validation_data=(X_test[::20], Y_test[::20]),
                                      callbacks=[metrics],
                                      class_weight=cw,
@@ -184,7 +184,7 @@ def trainAmodel(params):
                                         verbose=1)
     print("误差值 = " + str(preds[0]))
     print("准确度 = " + str(preds[1]))
-    cvres = model_v1.predict_generator(pre_generator(X_test, 4), verbose=1)
+    cvres = model_v1.predict_generator(pre_generator(X_test, 4), verbose=0)
     cvf1s, cache = V1_utils.fmeasure(Y_test, cvres)
     p, r = cache
     print("f1 = {}, precision = {}, recall = {}".format(cvf1s, p, r))
