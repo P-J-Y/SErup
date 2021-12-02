@@ -147,8 +147,8 @@ from hyperopt import hp, STATUS_OK, Trials, fmin, tpe
 #batch_size 2 to 16
 
 space = {
-    'lr':hp.loguniform('lr',-10,-3),
-    'lambda_l2':hp.loguniform('lambda_l2',-8,0),
+    'lr':hp.loguniform('lr',-9,-4.5),
+    'lambda_l2':hp.loguniform('lambda_l2',-4,0),
     'batch_size':hp.choice('batch_size',[16,])
 }
 
@@ -205,5 +205,22 @@ np.savez(filename,trails=trials,best=best)
 
 print('best')
 print(best)
-for trial in trials.trials[:]:
-    print(trial)
+
+trialNum = len(trials.trials)
+l2s = np.zeros(trialNum)
+lrs = np.zeros(trialNum)
+losses = np.zeros(trialNum)
+for trialidx in range(trialNum):
+    thevals = trials.trials[trialidx]['misc']['vals']
+    l2s[trialidx] = thevals['lambda_l2'][0]
+    lrs[trialidx] = thevals['lr'][0]
+    losses[trialidx] = trials.trials[trialidx]['result']['loss']
+
+import matplotlib.pyplot as plt
+plt.figure()
+plt.scatter(np.log(lrs),np.log(l2s),c=losses,cmap='jet')
+plt.xlabel('ln[lr]')
+plt.ylabel('ln[λ]')
+plt.title('loss')
+plt.colorbar()
+plt.show()
