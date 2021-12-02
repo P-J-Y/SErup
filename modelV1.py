@@ -162,7 +162,7 @@ def trainAmodel(params):
     opt = tensorflow.keras.optimizers.Adam(lr=params['lr'])
     model_v1.compile(loss="binary_crossentropy", metrics=['accuracy'], optimizer=opt)
     steps_per_epoch = (np.shape(X_train)[0] + params['batch_size'] - 1) // params['batch_size']
-    metrics = V1_utils.Metrics(test_data=(X_test[::10], Y_test[::10]), train_data=(X_train[::100], Y_train[::100]))
+    #metrics = V1_utils.Metrics(test_data=(X_test[::10], Y_test[::10]), train_data=(X_train[::100], Y_train[::100]))
 
     from sklearn.utils import class_weight
     import pandas as pd
@@ -176,7 +176,7 @@ def trainAmodel(params):
                                      epochs=30,
                                      verbose=0,
                                      validation_data=(X_test[::20], Y_test[::20]),
-                                     callbacks=[metrics],
+                                     #callbacks=[metrics],
                                      class_weight=cw,
                                      )
     # 评估模型
