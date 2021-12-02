@@ -12,6 +12,7 @@ from tensorflow.keras.layers import AveragePooling2D, MaxPooling2D, Dropout, Glo
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
 import tensorflow.keras.regularizers as tfkreg
+import matplotlib.pyplot as plt
 
 def creat_dataset():
     datas = {}
@@ -363,6 +364,23 @@ def fbeta_score(y_true, y_pred, beta=1):
 def fmeasure(y_true, y_pred):
     return fbeta_score(y_true, y_pred, beta=1)
 
+def testEvent(model,xtest,ytest,):
+    '''
+    plot testevent (AR or global)
+    :param model:
+    :param xtest:
+    :param ytest:
+    :return:
+    '''
+    ypre = model.predict(xtest,verbose=1)
+    print("y={}, probility={}".format(ytest,ypre))
+    plt.figure()
+    nc = xtest.shape[-1]
+    for idx in range(nc):
+        plt.subplot((nc+1)//2,2,idx)
+        plt.imshow(xtest[:,:,idx])
+    plt.save("figure/test/1.png")
+    return ypre,ytest
 
 
 
@@ -372,6 +390,14 @@ if __name__ == '__main__':
     #creat_dataset_tot()
     #creat_dataset_single()
     xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset(filename='data/data24hr_1hr/data24hr_1hr.h5')
+    del xtrain_orig
+    del ytrain
+    #Y_train = ytrain.T
+    X_test = xtest_orig / 255.
+    Y_test = ytest.T
+    model = tensorflow.keras.models.load_model('model/v1/model_v1_1.h5')
+    testidx = 1
+    ypre,ytest = testEvent(model,X_test[testidx,:,:,:],Y_test[testidx])
     #xtrain_orig, ytrain, classes = load_dataset_tot('data/data60/data60tot.h5')
     #model = modelV1([256,256,6])
     #model.summary()
