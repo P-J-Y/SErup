@@ -182,7 +182,7 @@ def trainAmodel(params):
     # 评估模型
     batch_size_test = 4
     preds = model_v1.evaluate_generator(generator=val_generator(X_test, Y_test, batch_size_test),
-                                        verbose=1)
+                                        verbose=0)
     print("误差值 = " + str(preds[0]))
     print("准确度 = " + str(preds[1]))
     cvres = model_v1.predict_generator(pre_generator(X_test, 4), verbose=0)
