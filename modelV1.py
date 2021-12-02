@@ -147,9 +147,9 @@ from hyperopt import hp, STATUS_OK, Trials, fmin, tpe
 #batch_size 2 to 16
 
 space = {
-    'lr':hp.loguniform('lr',-10,-1),
-    'lambda_l2':hp.loguniform('lambda_l2',-10,-1),
-    'batch_size':hp.choice('batch_size',[2,4,8,16])
+    'lr':hp.loguniform('lr',-10,-3),
+    'lambda_l2':hp.loguniform('lambda_l2',-8,0),
+    'batch_size':hp.choice('batch_size',[16,])
 }
 
 f1 = 0
@@ -190,17 +190,20 @@ def trainAmodel(params):
     print("f1 = {}, precision = {}, recall = {}".format(cvf1s, p, r))
     if cvf1s>f1:
         f1 = cvf1s
-        model_v1.save('model/v1/model_v1_1.h5')
-    print(f1)
+        model_v1.save('model/v1/model_v1_3.h5')
+        print(f1)
     return {
         'loss':-cvf1s,
         'status':STATUS_OK
     }
 
 trials = Trials()
-best = fmin(trainAmodel, space, algo=tpe.suggest, max_evals=100, trials=trials)
+best = fmin(trainAmodel, space, algo=tpe.suggest, max_evals=50, trials=trials)
+
+filename= 'model/v1/log_v1_3.npz'
+np.savez(filename,trails=trials,best=best)
+
 print('best')
 print(best)
-for trial in trials.trials[:100]:
+for trial in trials.trials[:]:
     print(trial)
-
