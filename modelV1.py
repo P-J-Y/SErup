@@ -1,3 +1,5 @@
+#加上earlyStop！！！
+
 import tensorflow as tf
 import h5py
 import numpy as np
@@ -16,6 +18,7 @@ from tensorflow.python.keras.utils.vis_utils import model_to_dot
 from tensorflow.python.keras.utils.vis_utils import plot_model
 import V1_utils
 import tensorflow.keras.backend as K
+
 
 
 K.set_image_data_format('channels_last')
