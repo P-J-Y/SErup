@@ -925,7 +925,7 @@ def getArArray(posres,
         for aridx in range(arInfo['ar_num']):
             if arInfo["ar_tstarts"][aridx] <= t: # 如果这个时间这个AR还没有产生，就不考虑这个AR
                 aridxs.append(aridx)
-        if aridx:
+        if aridxs:
             themaps = []
             for channelIdx in range(Nchannels):
                 observatory = observatorys[channelIdx]
