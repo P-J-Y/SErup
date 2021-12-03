@@ -210,7 +210,7 @@ trials = Trials()
 best = fmin(trainAmodel, space, algo=tpe.suggest, max_evals=50, trials=trials)
 
 filename= 'model/v1/log_v1_4.npz'
-np.savez(filename,trails=trials,best=best)
+np.savez(filename,trials=trials,best=best)
 
 print('best')
 print(best)
@@ -223,12 +223,12 @@ for trialidx in range(trialNum):
     thevals = trials.trials[trialidx]['misc']['vals']
     l2s[trialidx] = thevals['lambda_l2'][0]
     lrs[trialidx] = thevals['lr'][0]
-    losses[trialidx] = trials.trials[trialidx]['result']['loss']
+    losses[trialidx] = -trials.trials[trialidx]['result']['loss']
 
 plt.figure()
 plt.scatter(np.log(lrs),np.log(l2s),c=losses,cmap='jet')
 plt.xlabel('ln[lr]')
 plt.ylabel('ln[λ]')
-plt.title('loss')
+plt.title('f1')
 plt.colorbar()
 plt.savefig('model/v1/hyparams_v1_4.jpg')

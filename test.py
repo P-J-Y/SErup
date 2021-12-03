@@ -25,6 +25,7 @@ from sunpy.net.helioviewer import HelioviewerClient
 from sunpy.map import Map
 from sunpy.physics.differential_rotation import diff_rot, solar_rotate_coordinate
 from ffmpy3 import FFmpeg
+import matplotlib as mpl
 
 def getCmeSunWithArIndex(cmeTstart,
                          cmeCoord,
@@ -303,7 +304,35 @@ def checkAevent(cmeInfo,
 
 
 if __name__ == '__main__':
-    CEidx = 628
+
+    data = np.load('model/v1/log_v1_2.npz',allow_pickle=True)
+    trials = data['trails']
+    best = data['best']
+
+    trialNum = trials.shape[0]
+    l2s = np.zeros(trialNum)
+    lrs = np.zeros(trialNum)
+    bzs = np.zeros(trialNum)
+    losses = np.zeros(trialNum)
+    for trialidx in range(trialNum):
+        thevals = trials[trialidx]['misc']['vals']
+        l2s[trialidx] = thevals['lambda_l2'][0]
+        lrs[trialidx] = thevals['lr'][0]
+        bzs[trialidx] = (thevals['batch_size'][0]+1)
+        losses[trialidx] = -trials[trialidx]['result']['loss']
+
+    plt.figure()
+    plt.scatter(np.log(lrs), np.log(l2s), c=bzs, s=losses*100, cmap=mpl.colors.ListedColormap(
+    ["darkorange", "gold", "lawngreen", "lightseagreen"]
+))
+    plt.xlabel('ln[lr]')
+    plt.ylabel('ln[λ]')
+    plt.title('f1')
+    cb = plt.colorbar()
+    cb.set_label('log2[BatchSize]', labelpad=-1)
+    plt.savefig('model/v1/hyparams_v1_2.jpg')
+
+    CEidx = 55
 
     cmelistpath = 'data/cmelist.json'
     file = open(cmelistpath, 'r', encoding='utf-8')
