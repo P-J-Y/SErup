@@ -597,7 +597,8 @@ def getCmeFilm(cmeidx,
                time_earlier1=90,
                time_earlier2=-20,
                freq='2min',
-               film_path = os.getcwd() + "\\figure\\film\\"
+               film_path = os.getcwd() + "\\figure\\film\\",
+               mustmatch=True,
                ):
     '''
 
@@ -677,7 +678,7 @@ def getCmeFilm(cmeidx,
     minDist, minidx, matchFlag = arCmeMatch(dists, arInfo)
     print("cme ar idx = {}".format(minidx))
     print("matchFlag={}".format(matchFlag))
-    if matchFlag>=1:
+    if matchFlag>=1 and mustmatch:
         raise ValueError("matchFlag>=1, cme's source ar is not found, try next CEidx",matchFlag)
 
     # film_name = current_name + "\\figure\\film\cme{}film{}.mp4".format(measurement, cmeidx)
@@ -974,15 +975,67 @@ def getArArray(posres,
                           imgSize=imgSize)
 
 
-cmelistpath = 'data/cmelist.json'
-file = open(cmelistpath, 'r', encoding='utf-8')
-cmelist = json.load(file)
-ar_search_t1 = 80
-ar_search_t2 = 40
-data_t1 = 60*24
-data_t2 = 60
-freq = '60min'
-ar_threshold = (100,6)
+if __name__ == '__main__':
+    cmelistpath = 'data/cmelist.json'
+    file = open(cmelistpath, 'r', encoding='utf-8')
+    cmelist = json.load(file)
+    ar_search_t1 = 80
+    ar_search_t2 = 40
+    data_t1 = 60 * 24
+    data_t2 = 60
+    freq = '60min'
+    ar_threshold = (100, 6)
+
+    POS = []
+    NEG = []
+
+    for CEidx in range(100, 200):
+        theCmeInfo = cmelist[CEidx]
+
+        try:
+            theArInfo, cache = getArInfoWithCmeInfo(theCmeInfo,
+                                                    time_earlier1=ar_search_t1,
+                                                    time_earlier2=ar_search_t2,
+                                                    ar_threshold=ar_threshold,
+                                                    fmt="%Y-%m-%dT%H:%MZ")
+            CEtstart = cache
+            CeCoordStr = theCmeInfo["sourceLocation"]
+            CE_coord = getCmeCoord(breakCoordStr(CeCoordStr))
+            dists = getDists(theArInfo, CE_coord, CEtstart)
+            minDist, minidx, matchFlag = arCmeMatch(dists, theArInfo)
+            print("cme ar idx = {}".format(minidx))
+            print("matchFlag={}".format(matchFlag))
+            if matchFlag >= 1:
+                raise ValueError("matchFlag>=1, cme's source ar is not found, try next CEidx", matchFlag)
+            getArArray(POS,
+                       NEG,
+                       CEtstart,
+                       theArInfo,
+                       minidx,
+                       time_earlier1=data_t1,
+                       time_earlier2=data_t2,
+                       freq=freq,
+                       observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                       instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                       measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                       imgSize=256,
+                       )
+
+        except ValueError:
+            print("CMEidx: {} cme coordstr error, or no AR found. goto next CEidx".format(CEidx))
+            continue
+        except AssertionError:
+            print("CMEidx: {} 可能没找到合适的AR，换到下一个CME".format(CEidx))
+            continue
+        except RuntimeError:
+            print("CMEidx: {} Don't know what happened, maybe it's the internet?".format(CEidx))
+            np.savez("data/data24hr_1hr/base1.npz", pos=POS, neg=NEG)
+            continue
+
+    filename = 'data/data24hr_1hr/dataset1.npz'
+    np.savez(filename, pos=POS, neg=NEG)
+    print('dd')
+
 # CEidx = 3
 # theCmeInfo = cmelist[CEidx]
 # theArInfo, cache = getArInfoWithCmeInfo(theCmeInfo,
@@ -1000,60 +1053,11 @@ ar_threshold = (100,6)
 # if matchFlag >= 1:
 #     raise ValueError("matchFlag>=1, cme's source ar is not found, try next CEidx", matchFlag)
 
-#加入其他不等于minidx的情况（但是输出的就是neg）
+# 加入其他不等于minidx的情况（但是输出的就是neg）
 # observatorys = ("SDO","SDO","SDO","SDO","SDO","SDO",)
 # instruments = ("AIA","AIA","AIA","AIA","AIA","HMI")
 # measurements = ("94","171","193","211","304","magnetogram")
 
-POS = []
-NEG = []
-
-for CEidx in range(100,200):
-    theCmeInfo = cmelist[CEidx]
-
-    try:
-        theArInfo, cache = getArInfoWithCmeInfo(theCmeInfo,
-                                                time_earlier1=ar_search_t1,
-                                                time_earlier2=ar_search_t2,
-                                                ar_threshold=ar_threshold,
-                                                fmt="%Y-%m-%dT%H:%MZ")
-        CEtstart = cache
-        CeCoordStr = theCmeInfo["sourceLocation"]
-        CE_coord = getCmeCoord(breakCoordStr(CeCoordStr))
-        dists = getDists(theArInfo, CE_coord, CEtstart)
-        minDist, minidx, matchFlag = arCmeMatch(dists, theArInfo)
-        print("cme ar idx = {}".format(minidx))
-        print("matchFlag={}".format(matchFlag))
-        if matchFlag >= 1:
-            raise ValueError("matchFlag>=1, cme's source ar is not found, try next CEidx", matchFlag)
-        getArArray(POS,
-                   NEG,
-                   CEtstart,
-                   theArInfo,
-                   minidx,
-                   time_earlier1=data_t1,
-                   time_earlier2=data_t2,
-                   freq=freq,
-                   observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO","SDO",),
-                   instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                   measurements=("94", "171", "193", "211", "304", "magnetogram",'continuum'),
-                   imgSize=256,
-                   )
-
-    except ValueError:
-        print("CMEidx: {} cme coordstr error, or no AR found. goto next CEidx".format(CEidx))
-        continue
-    except AssertionError:
-        print("CMEidx: {} 可能没找到合适的AR，换到下一个CME".format(CEidx))
-        continue
-    except RuntimeError:
-        print("CMEidx: {} Don't know what happened, maybe it's the internet?".format(CEidx))
-        np.savez("data/data24hr_1hr/base1.npz", pos=POS, neg=NEG)
-        continue
-
-
-filename= 'data/data24hr_1hr/dataset1.npz'
-np.savez(filename,pos=POS,neg=NEG)
 
 
 # getArArray(POS,
@@ -1068,7 +1072,7 @@ np.savez(filename,pos=POS,neg=NEG)
 #            # instrument="AIA",
 #            # measurement="193",
 #            )
-print('dd')
+
 '''
 #CEidx = 59
 theCmeInfo = cmelist[CEidx]

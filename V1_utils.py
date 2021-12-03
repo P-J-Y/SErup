@@ -389,15 +389,15 @@ if __name__ == '__main__':
     #creat_dataset()
     #creat_dataset_tot()
     #creat_dataset_single()
-    xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset(filename='data/data60to30/data60to30.h5')
-    del xtrain_orig
-    del ytrain
-    #Y_train = ytrain.T
-    X_test = xtest_orig / 255.
-    Y_test = ytest.T
-    model = tensorflow.keras.models.load_model('model/v1/model_v1_3.h5')
-    testidx = 69
-    ypre,ytest = testEvent(model,X_test[testidx,None,:,:,:],Y_test[testidx],figname=testidx)
+    # xtrain_orig, ytrain, xtest_orig, ytest, classes = load_dataset(filename='data/data60to30/data60to30.h5')
+    # del xtrain_orig
+    # del ytrain
+    # #Y_train = ytrain.T
+    # X_test = xtest_orig / 255.
+    # Y_test = ytest.T
+    # model = tensorflow.keras.models.load_model('model/v1/model_v1_3.h5')
+    # testidx = 69
+    # ypre,ytest = testEvent(model,X_test[testidx,None,:,:,:],Y_test[testidx],figname=testidx)
     # cvres = model.predict(X_test, verbose=1)
     # cvf1s, cache = fmeasure(Y_test, cvres)
     # p, r = cache
@@ -405,4 +405,5 @@ if __name__ == '__main__':
     #model = modelV1([256,256,6])
     #model.summary()
     print("test down")
+
 
