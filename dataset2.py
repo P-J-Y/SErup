@@ -1,16 +1,21 @@
 # 这个模块是getdataset的升级，首先保存cme和ar的数据库，然后用交叉匹配，匹配出match的cme与ar；
 # 正样本就是匹配的结果，而负样本由长时间无cme爆发的ar得到，这是考虑到cme爆发频繁的时候，“负样本”很可能到背面爆发，实则是正样本
 # sharp的数据中ar的持续时间一般最长是4hr，超过了会截断，所以会看到一个cme同时match了多个ar，其实是同一个，只不过是不同的时间段
+# sunpy好像有bug 有些连续谱的数据读出来有问题（有nan有且检查不出来），1000个ar间隔30分钟，应该有8000个样本左右，但是这样估计会少很多
 import json
 import datetime
 
+import cv2
+import pandas as pd
 from astropy.coordinates import SkyCoord
 from sunpy.coordinates import frames
+from sunpy.map import Map
 from sunpy.net import Fido
 from sunpy.net import attrs as a
 import numpy as np
 import h5py
 import astropy.units as u
+from sunpy.net.helioviewer import HelioviewerClient
 from sunpy.physics.differential_rotation import solar_rotate_coordinate
 
 from getDataset import getCmeCoord, breakCoordStr
@@ -129,16 +134,6 @@ def getarlist(fmt="%Y-%m-%dT%H:%M:%S"):
     file.close()
 
 
-def loadarlist(fmt="%Y-%m-%dT%H:%M:%S"):
-    '''
-    加载ar数据用的程序
-    :param fmt:
-    :return:
-    '''
-    arinfo = np.load("data/arlist.npy", allow_pickle=True)
-    print('test')
-
-
 def matchArCme(time_earlier1=24,
                time_earlier2=0, ):
     '''
@@ -200,6 +195,8 @@ def matchArCme(time_earlier1=24,
         matchflags = arCmeMatch(dists, arlist['ar_scales'][localAr])
         ismatch = matchflags < (matchmax+1)
         matchnum = sum(ismatch)
+        if matchnum==0:
+            return 0, []
         matchidx = localAridx[ismatch]
         return matchnum,matchidx
 
@@ -226,14 +223,225 @@ def matchArCme(time_earlier1=24,
         matchnums[cmeidx] = matchnum
         matchidxs.append(matchidx)
         print("CMEidx: {}, matchnum: {}".format(cmeidx,matchnum))
-    file = h5py.File('data/matchTable.h5', 'w')
-    file.create_dataset('matchnums',data=matchnums)
-    file.create_dataset('matchidxs',data=matchidxs)
-    file.close()
-
+        np.savez('data\matchTable.npz', matchnums=matchnums, matchidxs=tuple(matchidxs))
     return matchnums,matchidxs
 
 
-matchnums,matchidxs = matchArCme()
+#matchnums,matchidxs = matchArCme()
 # arinfo = creatArDataset()
+
+def positiveSampling(fileName='data/data2/1/testpos.h5',
+                     freq='30min',
+                     observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                     instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                     measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                     imgSize=256,
+                     i1=0,
+                     i2=1054,
+                     ):
+    # 目前是直接把match的AR全时期的图像都取出来
+
+    def getAArpos(DATA, aridx,arlist,unit=u.deg):
+        t1 = datetime.datetime.fromtimestamp(arlist['ar_tstarts'][aridx])
+        t2 = datetime.datetime.fromtimestamp(arlist['ar_tends'][aridx])
+        arx = arlist['ar_xs'][aridx]
+        ary = arlist['ar_ys'][aridx]
+        arwidth = arlist['ar_widths'][aridx]
+        arheight = arlist['ar_heights'][aridx]
+        art  = datetime.datetime.fromtimestamp(arlist['ar_ts'][aridx])
+        hv = HelioviewerClient()
+
+        def getMap(t, observatory, instrument, measurement):
+            file = hv.download_jp2(t,
+                                   observatory=observatory,
+                                   instrument=instrument,
+                                   measurement=measurement)
+            themap = Map(file)
+            return themap
+
+        def pad2square(submapData):
+            '''
+
+            :param submapData: 2 dims array
+            :return:
+            '''
+            dataShape = np.shape(submapData)
+            assert len(dataShape) == 2, "data dims error"
+            bigSize = max(dataShape)
+            smallSize = min(dataShape)
+            if bigSize == smallSize:
+                return submapData
+            bigAxis = dataShape.index(bigSize)
+            # smallAxis = dataShape.index(smallSize)
+            p1 = (bigSize - smallSize) // 2
+            p2 = bigSize - smallSize - p1
+            bigPad = (0, 0)
+            smallPad = (p1, p2)
+            if bigAxis == 0:
+                thePad = (bigPad, smallPad)
+            else:
+                thePad = (smallPad, bigPad)
+            res = np.pad(submapData, thePad, 'constant', constant_values=(0, 0))
+            return res
+
+        def getSubmap(t, arx, ary, arw, arh, art, Nchannels,):
+            # get maps
+
+            themaps = []
+            for channelIdx in range(Nchannels):
+                observatory = observatorys[channelIdx]
+                instrument = instruments[channelIdx]
+                measurement = measurements[channelIdx]
+                themap = getMap(t, observatory, instrument, measurement)
+                themaps.append(themap)
+            # get submaps
+            cmeArCoord = arCoord(arx*unit, ary*unit, art)
+            theRotated_arc = solar_rotate_coordinate(cmeArCoord.transform_to(frames.Helioprojective),
+                                                     time=t).transform_to(cmeArCoord.frame)
+            if np.isnan(theRotated_arc.lon.value):
+                theRotated_arc = cmeArCoord
+            bottom_left = SkyCoord(theRotated_arc.lon - arw*unit / 2,
+                                   theRotated_arc.lat - arh*unit / 2,
+                                   frame=cmeArCoord.frame)
+            # theRotated_bl = solar_rotate_coordinate(bottom_left, time=t)
+            aData = np.zeros((imgSize, imgSize, Nchannels),"single")
+            for channelIdx in range(Nchannels):
+                thesubmap = themaps[channelIdx].submap(bottom_left,
+                                                       width=arw*unit,
+                                                       height=arh*unit)
+                thedata = thesubmap.data
+                thedata = pad2square(thedata)
+                dst_size = (imgSize, imgSize)
+                thedata = cv2.resize(thedata, dst_size, interpolation=cv2.INTER_AREA)
+                aData[:, :, channelIdx] = thedata
+            return aData
+
+        ts = list(pd.date_range(t1, t2, freq=freq))
+        Nchannels = len(instruments)
+        for t in ts:
+            try:
+                aData = getSubmap(t, arx, ary, arwidth, arheight, art, Nchannels,)
+                DATA.append(aData)
+            except ValueError:
+                print("AR too close to the edge or nodata ({},{}) ({},{})".format(arx,ary,arwidth,arheight))
+                continue
+
+    arlist = h5py.File('data/arlist.h5')
+    matchTable = np.load('data/matchTable.npz',allow_pickle=True)
+    matchnums = matchTable['matchnums']
+    matchidxs = matchTable['matchidxs']
+    ARidxs = set(np.concatenate(matchidxs[matchnums!=0]))
+    ARidxs = list(ARidxs)
+    ARidxs.sort()
+    DATA = []
+    for aridx in ARidxs[i1:i2]:
+        print('ARidx={}'.format(aridx))
+        getAArpos(DATA, aridx, arlist)
+
+    file = h5py.File(fileName,'w')
+    file.create_dataset('DATA',data=DATA)
+    file.close()
+
+
+positiveSampling(fileName='data/data2/1/pos0.h5',
+                 freq='30min',
+                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                 imgSize=256,
+                 i1=0,
+                 i2=100,
+                 )
+positiveSampling(fileName='data/data2/1/pos1.h5',
+                 freq='30min',
+                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                 imgSize=256,
+                 i1=100,
+                 i2=200,
+                 )
+positiveSampling(fileName='data/data2/1/pos2.h5',
+                 freq='30min',
+                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                 imgSize=256,
+                 i1=200,
+                 i2=300,
+                 )
+positiveSampling(fileName='data/data2/1/pos3.h5',
+                 freq='30min',
+                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                 imgSize=256,
+                 i1=300,
+                 i2=400,
+                 )
+positiveSampling(fileName='data/data2/1/pos4.h5',
+                 freq='30min',
+                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                 imgSize=256,
+                 i1=400,
+                 i2=500,
+                 )
+positiveSampling(fileName='data/data2/1/pos5.h5',
+                 freq='30min',
+                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                 imgSize=256,
+                 i1=500,
+                 i2=600,
+                 )
+positiveSampling(fileName='data/data2/1/pos6.h5',
+                 freq='30min',
+                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                 imgSize=256,
+                 i1=600,
+                 i2=700,
+                 )
+positiveSampling(fileName='data/data2/1/pos7.h5',
+                 freq='30min',
+                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                 imgSize=256,
+                 i1=700,
+                 i2=800,
+                 )
+positiveSampling(fileName='data/data2/1/pos8.h5',
+                 freq='30min',
+                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                 imgSize=256,
+                 i1=800,
+                 i2=900,
+                 )
+positiveSampling(fileName='data/data2/1/pos9.h5',
+                 freq='30min',
+                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                 imgSize=256,
+                 i1=900,
+                 i2=1000,
+                 )
+positiveSampling(fileName='data/data2/1/pos10.h5',
+                 freq='30min',
+                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                 imgSize=256,
+                 i1=1000,
+                 i2=1054,
+                 )
+
+
 print('dd')
