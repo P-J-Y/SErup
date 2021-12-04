@@ -534,8 +534,16 @@ def getCmeSunWithArIndex(cmeTstart,
 
 
 def breakCoordStr(coordStr):
-    coord2Str = coordStr[0:3]
-    coord1Str = coordStr[3:]
+    # S9E***
+    if coordStr[2].isalpha():
+        coord2Str = coordStr[0:2]
+        coord1Str = coordStr[2:]
+    # N81E***
+    elif coordStr[3].isalpha():
+        coord2Str = coordStr[0:3]
+        coord1Str = coordStr[3:]
+    else:
+        return None
     return (coord2Str, coord1Str)
 
 
@@ -545,6 +553,8 @@ def getCmeCoord(coordStrs):
     :param coordStrs:
     :return:
     '''
+    if not coordStrs:
+        return None
     coord2Str, coord1Str = coordStrs
     if coord2Str[0] == 'S':
         coord2 = -float(coord2Str[1:])
