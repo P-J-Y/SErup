@@ -350,14 +350,12 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
 
     file = h5py.File(fileName,'w')
     file.create_dataset('DATA',data=np.array(DATA))
-    file.create_dataset('erroraridx',data=erroridx)
     file.close()
 
-errorcmeidx = []
-for i in range(20):
+for i in range(10,21):
+#for i in range(10, 11):
     print('i={}'.format(i))
-    positiveSampling(errorcmeidx,
-                     fileName='data/data2/1/pos{}.h5'.format(i),
+    positiveSampling(fileName='data/data2/1/pos{}.h5'.format(i),
                      freq='30min',
                      observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
                      instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
