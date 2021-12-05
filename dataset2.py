@@ -241,7 +241,7 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
                      ):
     # 目前是直接把match的AR全时期的图像都取出来
 
-    def getAArpos(DATA, aridx,arlist,unit=u.deg):
+    def getAArpos(DATA, aridx,arlist,erroridx,unit=u.deg):
         t1 = datetime.datetime.fromtimestamp(arlist['ar_tstarts'][aridx])
         t2 = datetime.datetime.fromtimestamp(arlist['ar_tends'][aridx])
         arx = arlist['ar_xs'][aridx]
@@ -325,6 +325,13 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
             except ValueError:
                 print("AR too close to the edge or nodata ({},{}) ({},{})".format(arx,ary,arwidth,arheight))
                 continue
+            except OSError:
+                print("load data failed")
+                continue
+            except RuntimeError:
+                print("internet promblem")
+                erroridx.append(aridx)
+                continue
 
     arlist = h5py.File('data/arlist.h5')
     matchTable = np.load('data/matchTable.npz',allow_pickle=True)
@@ -334,114 +341,32 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
     ARidxs = list(ARidxs)
     ARidxs.sort()
     DATA = []
+    showidx=0
+    erroridx = []
     for aridx in ARidxs[i1:i2]:
-        print('ARidx={}'.format(aridx))
-        getAArpos(DATA, aridx, arlist)
+        print('{}/{} ARidx={}'.format(showidx,i2-i1,aridx))
+        getAArpos(DATA, aridx, arlist,erroridx)
+        showidx=showidx+1
 
     file = h5py.File(fileName,'w')
-    file.create_dataset('DATA',data=DATA)
+    file.create_dataset('DATA',data=np.array(DATA))
+    file.create_dataset('erroraridx',data=erroridx)
     file.close()
 
+errorcmeidx = []
+for i in range(20):
+    print('i={}'.format(i))
+    positiveSampling(errorcmeidx,
+                     fileName='data/data2/1/pos{}.h5'.format(i),
+                     freq='30min',
+                     observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                     instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                     measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                     imgSize=256,
+                     i1=50 * i,
+                     i2=50 * (i + 1),
+                     )
 
-positiveSampling(fileName='data/data2/1/pos0.h5',
-                 freq='30min',
-                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                 imgSize=256,
-                 i1=0,
-                 i2=100,
-                 )
-positiveSampling(fileName='data/data2/1/pos1.h5',
-                 freq='30min',
-                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                 imgSize=256,
-                 i1=100,
-                 i2=200,
-                 )
-positiveSampling(fileName='data/data2/1/pos2.h5',
-                 freq='30min',
-                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                 imgSize=256,
-                 i1=200,
-                 i2=300,
-                 )
-positiveSampling(fileName='data/data2/1/pos3.h5',
-                 freq='30min',
-                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                 imgSize=256,
-                 i1=300,
-                 i2=400,
-                 )
-positiveSampling(fileName='data/data2/1/pos4.h5',
-                 freq='30min',
-                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                 imgSize=256,
-                 i1=400,
-                 i2=500,
-                 )
-positiveSampling(fileName='data/data2/1/pos5.h5',
-                 freq='30min',
-                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                 imgSize=256,
-                 i1=500,
-                 i2=600,
-                 )
-positiveSampling(fileName='data/data2/1/pos6.h5',
-                 freq='30min',
-                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                 imgSize=256,
-                 i1=600,
-                 i2=700,
-                 )
-positiveSampling(fileName='data/data2/1/pos7.h5',
-                 freq='30min',
-                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                 imgSize=256,
-                 i1=700,
-                 i2=800,
-                 )
-positiveSampling(fileName='data/data2/1/pos8.h5',
-                 freq='30min',
-                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                 imgSize=256,
-                 i1=800,
-                 i2=900,
-                 )
-positiveSampling(fileName='data/data2/1/pos9.h5',
-                 freq='30min',
-                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                 imgSize=256,
-                 i1=900,
-                 i2=1000,
-                 )
-positiveSampling(fileName='data/data2/1/pos10.h5',
-                 freq='30min',
-                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                 instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                 measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                 imgSize=256,
-                 i1=1000,
-                 i2=1054,
-                 )
-
+#1054
 
 print('dd')
