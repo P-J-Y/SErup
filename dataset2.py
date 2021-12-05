@@ -334,7 +334,7 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
     ARidxs = list(ARidxs)
     ARidxs.sort()
     DATA = []
-    showidx=0
+    showidx=1
     for aridx in ARidxs[i1:i2]:
         print('{}/{} ARidx={}'.format(showidx,i2-i1,aridx))
         getAArpos(DATA, aridx, arlist,)
@@ -471,17 +471,19 @@ def negativeSamping(fileName='data/data2/1/testneg.h5',
     file.create_dataset('DATA', data=np.array(DATA))
     file.close()
 
-for i in range(10,21):
-#for i in range(10, 11):
+#for i in range(10,21):
+for i in range(13, 14):
     print('i={}'.format(i))
-    positiveSampling(fileName='data/data2/1/pos{}.h5'.format(i),
+    positiveSampling(#fileName='data/data2/1/pos{}.h5'.format(i),
+                     fileName='data/data2/1/pos{}.h5'.format('test'),
                      freq='30min',
                      observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
                      instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
                      measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
                      imgSize=256,
                      i1=50 * i,
-                     i2=50 * (i + 1),
+                     #i2=50 * (i + 1),
+                     i2=50*i+1,
                      )
 
 #1054
