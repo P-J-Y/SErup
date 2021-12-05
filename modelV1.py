@@ -12,7 +12,7 @@ from tensorflow.keras.preprocessing import image
 from tensorflow.python.keras.utils import layer_utils
 from tensorflow.python.keras.utils.data_utils import get_file
 from tensorflow.keras.applications.imagenet_utils import preprocess_input
-import pydot
+# import pydot
 from IPython.display import SVG
 from tensorflow.python.keras.utils.vis_utils import model_to_dot
 from tensorflow.python.keras.utils.vis_utils import plot_model
