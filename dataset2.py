@@ -344,6 +344,133 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
     file.create_dataset('DATA',data=np.array(DATA))
     file.close()
 
+def negativeSamping(fileName='data/data2/1/testneg.h5',
+                    freq='30min',
+                    observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                    instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
+                    measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                    imgSize=256,
+                    mindiff=datetime.timedelta(days=7),
+                    dategap=datetime.timedelta(days=2),
+                    i1=0, i2=100):
+
+    def getAArpos(DATA, aridx,arlist,unit=u.deg):
+        t1 = datetime.datetime.fromtimestamp(arlist['ar_tstarts'][aridx])
+        t2 = datetime.datetime.fromtimestamp(arlist['ar_tends'][aridx])
+        arx = arlist['ar_xs'][aridx]
+        ary = arlist['ar_ys'][aridx]
+        arwidth = arlist['ar_widths'][aridx]
+        arheight = arlist['ar_heights'][aridx]
+        art = datetime.datetime.fromtimestamp(arlist['ar_ts'][aridx])
+        hv = HelioviewerClient()
+
+        def getMap(t, observatory, instrument, measurement):
+            file = hv.download_jp2(t,
+                                   observatory=observatory,
+                                   instrument=instrument,
+                                   measurement=measurement)
+            themap = Map(file)
+            return themap
+
+        def pad2square(submapData):
+            '''
+
+            :param submapData: 2 dims array
+            :return:
+            '''
+            dataShape = np.shape(submapData)
+            assert len(dataShape) == 2, "data dims error"
+            bigSize = max(dataShape)
+            smallSize = min(dataShape)
+            if bigSize == smallSize:
+                return submapData
+            bigAxis = dataShape.index(bigSize)
+            # smallAxis = dataShape.index(smallSize)
+            p1 = (bigSize - smallSize) // 2
+            p2 = bigSize - smallSize - p1
+            bigPad = (0, 0)
+            smallPad = (p1, p2)
+            if bigAxis == 0:
+                thePad = (bigPad, smallPad)
+            else:
+                thePad = (smallPad, bigPad)
+            res = np.pad(submapData, thePad, 'constant', constant_values=(0, 0))
+            return res
+
+        def getSubmap(t, arx, ary, arw, arh, art, Nchannels,):
+            # get maps
+
+            themaps = []
+            for channelIdx in range(Nchannels):
+                observatory = observatorys[channelIdx]
+                instrument = instruments[channelIdx]
+                measurement = measurements[channelIdx]
+                themap = getMap(t, observatory, instrument, measurement)
+                themaps.append(themap)
+            # get submaps
+            cmeArCoord = arCoord(arx*unit, ary*unit, art)
+            theRotated_arc = solar_rotate_coordinate(cmeArCoord.transform_to(frames.Helioprojective),
+                                                     time=t).transform_to(cmeArCoord.frame)
+            if np.isnan(theRotated_arc.lon.value):
+                theRotated_arc = cmeArCoord
+            bottom_left = SkyCoord(theRotated_arc.lon - arw*unit / 2,
+                                   theRotated_arc.lat - arh*unit / 2,
+                                   frame=cmeArCoord.frame)
+            # theRotated_bl = solar_rotate_coordinate(bottom_left, time=t)
+            aData = np.zeros((imgSize, imgSize, Nchannels),"single")
+            for channelIdx in range(Nchannels):
+                thesubmap = themaps[channelIdx].submap(bottom_left,
+                                                       width=arw*unit,
+                                                       height=arh*unit)
+                thedata = thesubmap.data
+                thedata = pad2square(thedata)
+                dst_size = (imgSize, imgSize)
+                thedata = cv2.resize(thedata, dst_size, interpolation=cv2.INTER_AREA)
+                aData[:, :, channelIdx] = thedata
+            return aData
+
+        ts = list(pd.date_range(t1, t2, freq=freq))
+        Nchannels = len(instruments)
+        for t in ts:
+            try:
+                aData = getSubmap(t, arx, ary, arwidth, arheight, art, Nchannels,)
+                DATA.append(aData)
+            except ValueError:
+                print("AR too close to the edge or nodata ({},{}) ({},{})".format(arx,ary,arwidth,arheight))
+                continue
+    arlist = h5py.File('data/arlist.h5')
+    cmefilepath = 'data/cmefile.json'
+    file = open(cmefilepath, 'r', encoding='utf-8')
+    cmefile = json.load(file)
+    cmenum = len(cmefile)
+
+    cmeTs = [datetime.datetime.strptime(cmefile[i]["startTime"], "%Y-%m-%dT%H:%MZ") for i in range(cmenum)]
+    cmeTdiff = np.diff(cmeTs)
+    quiteflag = cmeTdiff > mindiff
+    quiteidxs = [i for i, x in enumerate(quiteflag) if x] #idx to idx+1 标号的cme间隔是大于mindiff的
+    quitenum = sum(quiteflag)
+    localnums = np.zeros(quitenum,"int32")
+    quitearidxs = []
+    for cmeidx in quiteidxs:
+        t1 = cmeTs[cmeidx]+dategap
+        t2 = cmeTs[cmeidx+1]-dategap
+        t1 = t1.timestamp()
+        t2 = t2.timestamp()
+        localAr = (np.array(arlist["ar_tstarts"]) >= t1) & (np.array(arlist["ar_tends"]) < t2)
+        local_num = sum(localAr)
+        localnums[cmeidx] = local_num
+        localidxs = [i for i, x in enumerate(localAr) if x]
+        quitearidxs = quitearidxs+localidxs
+    np.savez('data\quiteTable.npz', quiteidxs=quiteidxs, localnums=localnums,quitearidxs=quitearidxs)
+    DATA = []
+    for aridx in quitearidxs[i1:i2]:
+        print('ARidx={}'.format(aridx))
+        getAArpos(DATA, aridx, arlist)
+
+    file = h5py.File(fileName, 'w')
+    file.create_dataset('DATA', data=np.array(DATA))
+    file.close()
+
 for i in range(10,21):
 #for i in range(10, 11):
     print('i={}'.format(i))
