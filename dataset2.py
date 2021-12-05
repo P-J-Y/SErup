@@ -470,30 +470,32 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
     else:
         quiteTable = np.load('data\quiteTable.npz')
         quitearidxs = quiteTable['quitearidxs']
-
+    showidx = 1
     DATA = []
     for aridx in quitearidxs[i1:i2]:
-        print('ARidx={}'.format(aridx))
+        print('{}/{} ARidx={}'.format(showidx, i2 - i1, aridx))
         getAArpos(DATA, aridx, arlist)
+        showidx = showidx + 1
+
 
     file = h5py.File(fileName, 'w')
     file.create_dataset('DATA', data=np.array(DATA))
     file.close()
 
-for i in range(0,21):
-# for i in range(13, 14):
-    print('i={}'.format(i))
-    positiveSampling(fileName='data/data2/1/pos{}.h5'.format(i),
-                     #fileName='data/data2/1/pos{}.h5'.format('test'),
-                     freq='30min',
-                     observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                     instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
-                     measurements=("94", "171", "193", "211", "304", "magnetogram", '1700'),
-                     imgSize=256,
-                     i1=50 * i,
-                     i2=50 * (i + 1),
-                     #i2=50*i+1,
-                     )
+# for i in range(0,21):
+# # for i in range(13, 14):
+#     print('i={}'.format(i))
+#     positiveSampling(fileName='data/data2/1/pos{}.h5'.format(i),
+#                      #fileName='data/data2/1/pos{}.h5'.format('test'),
+#                      freq='30min',
+#                      observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+#                      instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
+#                      measurements=("94", "171", "193", "211", "304", "magnetogram", '1700'),
+#                      imgSize=256,
+#                      i1=50 * i,
+#                      i2=50 * (i + 1),
+#                      #i2=50*i+1,
+#                      )
 positiveSampling(fileName='data/data2/1/pos{}.h5'.format(21),
                      #fileName='data/data2/1/pos{}.h5'.format('test'),
                      freq='30min',
@@ -507,15 +509,15 @@ positiveSampling(fileName='data/data2/1/pos{}.h5'.format(21),
                      )
 
 
-for i in range(0, 28):
-    negativeSamping(  # fileName='data/data2/0/testneg.h5',
-        fileName='data/data2/0/neg{}.h5'.format(i),
-        observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-        instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
-        measurements=("94", "171", "193", "211", "304", "magnetogram", '1700'),
-        i1=50 * i,
-        # i2=100*(i+1),
-        i2=50 * (i + 1))
+# for i in range(0, 28):
+#     negativeSamping(  # fileName='data/data2/0/testneg.h5',
+#         fileName='data/data2/0/neg{}.h5'.format(i),
+#         observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+#         instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
+#         measurements=("94", "171", "193", "211", "304", "magnetogram", '1700'),
+#         i1=50 * i,
+#         # i2=100*(i+1),
+#         i2=50 * (i + 1))
 negativeSamping(  # fileName='data/data2/0/testneg.h5',
         fileName='data/data2/0/neg{}.h5'.format(28),
         observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
