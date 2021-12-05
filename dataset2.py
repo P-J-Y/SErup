@@ -19,7 +19,7 @@ from sunpy.net.helioviewer import HelioviewerClient
 from sunpy.physics.differential_rotation import solar_rotate_coordinate
 
 from getDataset import getCmeCoord, breakCoordStr
-
+import matplotlib.pyplot as plt
 
 def arCoord(arx, ary, art, frame="heliographic_stonyhurst", observer="earth"):
     theAR_coord = SkyCoord(arx, ary,
@@ -233,8 +233,8 @@ def matchArCme(time_earlier1=24,
 def positiveSampling(fileName='data/data2/1/testpos.h5',
                      freq='30min',
                      observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                     instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                     measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                     instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
+                     measurements=("94", "171", "193", "211", "304", "magnetogram", '1700'),
                      imgSize=256,
                      i1=0,
                      i2=1054,
@@ -344,15 +344,16 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
     file.create_dataset('DATA',data=np.array(DATA))
     file.close()
 
-def negativeSamping(fileName='data/data2/1/testneg.h5',
+def negativeSamping(fileName='data/data2/0/testneg.h5',
                     freq='30min',
                     observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                    instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                    measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
+                    instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
+                    measurements=("94", "171", "193", "211", "304", "magnetogram", '1700'),
                     imgSize=256,
                     mindiff=datetime.timedelta(days=7),
                     dategap=datetime.timedelta(days=2),
-                    i1=0, i2=100):
+                    i1=0, i2=100,
+                    new=False):
 
     def getAArpos(DATA, aridx,arlist,unit=u.deg):
         t1 = datetime.datetime.fromtimestamp(arlist['ar_tstarts'][aridx])
@@ -423,6 +424,9 @@ def negativeSamping(fileName='data/data2/1/testneg.h5',
                                                        width=arw*unit,
                                                        height=arh*unit)
                 thedata = thesubmap.data
+                # if not thedata:
+                #     print("No submapData, channelidx={}".format(channelIdx))
+                #     raise ValueError("又是连续谱对不对")
                 thedata = pad2square(thedata)
                 dst_size = (imgSize, imgSize)
                 thedata = cv2.resize(thedata, dst_size, interpolation=cv2.INTER_AREA)
@@ -439,29 +443,34 @@ def negativeSamping(fileName='data/data2/1/testneg.h5',
                 print("AR too close to the edge or nodata ({},{}) ({},{})".format(arx,ary,arwidth,arheight))
                 continue
     arlist = h5py.File('data/arlist.h5')
-    cmefilepath = 'data/cmefile.json'
-    file = open(cmefilepath, 'r', encoding='utf-8')
-    cmefile = json.load(file)
-    cmenum = len(cmefile)
+    if new:
+        cmefilepath = 'data/cmefile.json'
+        file = open(cmefilepath, 'r', encoding='utf-8')
+        cmefile = json.load(file)
+        cmenum = len(cmefile)
 
-    cmeTs = [datetime.datetime.strptime(cmefile[i]["startTime"], "%Y-%m-%dT%H:%MZ") for i in range(cmenum)]
-    cmeTdiff = np.diff(cmeTs)
-    quiteflag = cmeTdiff > mindiff
-    quiteidxs = [i for i, x in enumerate(quiteflag) if x] #idx to idx+1 标号的cme间隔是大于mindiff的
-    quitenum = sum(quiteflag)
-    localnums = np.zeros(quitenum,"int32")
-    quitearidxs = []
-    for cmeidx in quiteidxs:
-        t1 = cmeTs[cmeidx]+dategap
-        t2 = cmeTs[cmeidx+1]-dategap
-        t1 = t1.timestamp()
-        t2 = t2.timestamp()
-        localAr = (np.array(arlist["ar_tstarts"]) >= t1) & (np.array(arlist["ar_tends"]) < t2)
-        local_num = sum(localAr)
-        localnums[cmeidx] = local_num
-        localidxs = [i for i, x in enumerate(localAr) if x]
-        quitearidxs = quitearidxs+localidxs
-    np.savez('data\quiteTable.npz', quiteidxs=quiteidxs, localnums=localnums,quitearidxs=quitearidxs)
+        cmeTs = [datetime.datetime.strptime(cmefile[i]["startTime"], "%Y-%m-%dT%H:%MZ") for i in range(cmenum)]
+        cmeTdiff = np.diff(cmeTs)
+        quiteflag = cmeTdiff > mindiff
+        quiteidxs = [i for i, x in enumerate(quiteflag) if x]  # idx to idx+1 标号的cme间隔是大于mindiff的
+        quitenum = sum(quiteflag)
+        localnums = np.zeros(quitenum, "int32")
+        quitearidxs = []
+        for j, cmeidx in enumerate(quiteidxs):
+            t1 = cmeTs[cmeidx] + dategap
+            t2 = cmeTs[cmeidx + 1] - dategap
+            t1 = t1.timestamp()
+            t2 = t2.timestamp()
+            localAr = (np.array(arlist["ar_tstarts"]) >= t1) & (np.array(arlist["ar_tends"]) < t2)
+            local_num = sum(localAr)
+            localnums[j] = local_num
+            localidxs = [i for i, x in enumerate(localAr) if x]
+            quitearidxs = quitearidxs + localidxs
+        np.savez('data\quiteTable.npz', quiteidxs=quiteidxs, localnums=localnums, quitearidxs=quitearidxs)
+    else:
+        quiteTable = np.load('data\quiteTable.npz')
+        quitearidxs = quiteTable['quitearidxs']
+
     DATA = []
     for aridx in quitearidxs[i1:i2]:
         print('ARidx={}'.format(aridx))
@@ -472,20 +481,30 @@ def negativeSamping(fileName='data/data2/1/testneg.h5',
     file.close()
 
 #for i in range(10,21):
-for i in range(13, 14):
-    print('i={}'.format(i))
-    positiveSampling(#fileName='data/data2/1/pos{}.h5'.format(i),
-                     fileName='data/data2/1/pos{}.h5'.format('test'),
-                     freq='30min',
-                     observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                     instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
-                     measurements=("94", "171", "193", "211", "304", "magnetogram", 'continuum'),
-                     imgSize=256,
-                     i1=50 * i,
-                     #i2=50 * (i + 1),
-                     i2=50*i+1,
-                     )
-
+# for i in range(13, 14):
+#     print('i={}'.format(i))
+#     positiveSampling(#fileName='data/data2/1/pos{}.h5'.format(i),
+#                      fileName='data/data2/1/pos{}.h5'.format('test'),
+#                      freq='30min',
+#                      observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+#                      instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
+#                      measurements=("94", "171", "193", "211", "304", "magnetogram", '1700'),
+#                      imgSize=256,
+#                      i1=50 * i,
+#                      #i2=50 * (i + 1),
+#                      i2=50*i+1,
+#                      )
+negativeSamping(fileName='data/data2/0/testneg.h5',
+                    #fileName='data/data2/0/neg{}.h5'.format(i),
+                    i1=454,
+                    #i2=100*(i+1),
+                    i2=455)
+for i in range(13,14):
+    negativeSamping(fileName='data/data2/0/testneg.h5',
+                    #fileName='data/data2/0/neg{}.h5'.format(i),
+                    i1=100*i,
+                    #i2=100*(i+1),
+                    i2=100*i+1)
 #1054
-
+#1426
 print('dd')
