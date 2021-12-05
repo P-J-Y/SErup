@@ -9,3 +9,6 @@ figure/test/AR193Film690.mp4
 *.png
 model/v1/model_v1_1.h5
 data/data/data60to30/data60to30.h5
+*.npz
+*.h5
+*.jpg
