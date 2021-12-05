@@ -339,13 +339,13 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
         getAArpos(DATA, aridx, arlist)
 
     file = h5py.File(fileName,'w')
-    file.create_dataset('DATA',data=DATA)
+    file.create_dataset('DATA',data=np.array(DATA))
     file.close()
 
-#for i in range(10,21):
-for i in range(10, 11):
+for i in range(10,21):
+#for i in range(10, 11):
     print('i={}'.format(i))
-    positiveSampling(fileName='data/data2/1/pos{}.h5'.format('test'),
+    positiveSampling(fileName='data/data2/1/pos{}.h5'.format(i),
                      freq='30min',
                      observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
                      instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "HMI"),
