@@ -241,7 +241,7 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
                      ):
     # 目前是直接把match的AR全时期的图像都取出来
 
-    def getAArpos(DATA, aridx,arlist,erroridx,unit=u.deg):
+    def getAArpos(DATA, aridx,arlist,unit=u.deg):
         t1 = datetime.datetime.fromtimestamp(arlist['ar_tstarts'][aridx])
         t2 = datetime.datetime.fromtimestamp(arlist['ar_tends'][aridx])
         arx = arlist['ar_xs'][aridx]
@@ -325,13 +325,6 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
             except ValueError:
                 print("AR too close to the edge or nodata ({},{}) ({},{})".format(arx,ary,arwidth,arheight))
                 continue
-            except OSError:
-                print("load data failed")
-                continue
-            except RuntimeError:
-                print("internet promblem")
-                erroridx.append(aridx)
-                continue
 
     arlist = h5py.File('data/arlist.h5')
     matchTable = np.load('data/matchTable.npz',allow_pickle=True)
@@ -342,10 +335,9 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
     ARidxs.sort()
     DATA = []
     showidx=0
-    erroridx = []
     for aridx in ARidxs[i1:i2]:
         print('{}/{} ARidx={}'.format(showidx,i2-i1,aridx))
-        getAArpos(DATA, aridx, arlist,erroridx)
+        getAArpos(DATA, aridx, arlist,)
         showidx=showidx+1
 
     file = h5py.File(fileName,'w')
