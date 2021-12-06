@@ -553,7 +553,7 @@ def getCmeCoord(coordStrs):
     :param coordStrs:
     :return:
     '''
-    if not coordStrs:
+    if coordStrs is None:
         return None
     coord2Str, coord1Str = coordStrs
     if coord2Str[0] == 'S':

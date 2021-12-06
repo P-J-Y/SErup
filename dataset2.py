@@ -2,6 +2,7 @@
 # 正样本就是匹配的结果，而负样本由长时间无cme爆发的ar得到，这是考虑到cme爆发频繁的时候，“负样本”很可能到背面爆发，实则是正样本
 # sharp的数据中ar的持续时间一般最长是4hr，超过了会截断，所以会看到一个cme同时match了多个ar，其实是同一个，只不过是不同的时间段
 # sunpy好像有bug 有些连续谱的数据读出来有问题（有nan有且检查不出来），1000个ar间隔30分钟，应该有8000个样本左右，但是这样估计会少很多
+# 应该处理一下AR位置太边缘，否则数据太少了
 import json
 import datetime
 
@@ -183,7 +184,7 @@ def matchArCme(time_earlier1=24,
         t2 = t2.timestamp()
         CeCoordStr = cmeinfo["sourceLocation"]
         CE_coord = getCmeCoord(breakCoordStr(CeCoordStr))
-        if not CE_coord:
+        if CE_coord is None:
             return 0, []
 
         localAr = (np.array(arlist["ar_tends"]) >= t1) & (np.array(arlist["ar_tends"]) < t2)
@@ -325,12 +326,12 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
         for t in ts:
             try:
                 aData = getSubmap(t, arx, ary, arwidth, arheight, art, Nchannels,)
-                if not aData:
-                    continue
-                DATA.append(aData)
             except ValueError:
                 print("AR too close to the edge or nodata ({},{}) ({},{})".format(arx,ary,arwidth,arheight))
                 continue
+            if aData is None:
+                continue
+            DATA.append(aData)
 
     arlist = h5py.File('data/arlist.h5')
     matchTable = np.load('data/matchTable.npz',allow_pickle=True)
@@ -342,6 +343,8 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
     DATA = []
     showidx=1
     for aridx in ARidxs[i1:i2]:
+        if aridx<1650: # 再次之前是没有匹配的磁图的
+            continue
         print('{}/{} ARidx={}'.format(showidx,i2-i1,aridx))
         getAArpos(DATA, aridx, arlist,)
         showidx=showidx+1
@@ -361,7 +364,7 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
                     i1=0, i2=100,
                     new=False):
 
-    def getAArpos(DATA, aridx,arlist,unit=u.deg):
+    def getAArpos(DATA, aridx, arlist, unit=u.deg):
         t1 = datetime.datetime.fromtimestamp(arlist['ar_tstarts'][aridx])
         t2 = datetime.datetime.fromtimestamp(arlist['ar_tends'][aridx])
         arx = arlist['ar_xs'][aridx]
@@ -434,7 +437,7 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
                                                        width=arw*unit,
                                                        height=arh*unit)
                 thedata = thesubmap.data
-                # if not thedata:
+                # if thedata is None:
                 #     print("No submapData, channelidx={}".format(channelIdx))
                 #     raise ValueError("又是连续谱对不对")
                 thedata = pad2square(thedata)
@@ -448,13 +451,16 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
         for t in ts:
             print('t={}'.format(t))
             try:
-                aData = getSubmap(t, arx, ary, arwidth, arheight, art, Nchannels,)
-                if not aData:
-                    continue
-                DATA.append(aData)
+                aData = getSubmap(t, arx, ary, arwidth, arheight, art, Nchannels, )
             except ValueError:
                 print("AR too close to the edge or nodata ({},{}) ({},{})".format(arx,ary,arwidth,arheight))
                 continue
+
+            if aData is None:
+                continue
+            DATA.append(aData)
+
+
     arlist = h5py.File('data/arlist.h5')
     if new:
         cmefilepath = 'data/cmefile.json'
@@ -486,9 +492,13 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
     showidx = 1
     DATA = []
     for aridx in quitearidxs[i1:i2]:
+        if aridx<1650:
+            continue
         print('{}/{} ARidx={}'.format(showidx, i2 - i1, aridx))
-        getAArpos(DATA, aridx, arlist)
         showidx = showidx + 1
+        getAArpos(DATA, aridx, arlist)
+
+
 
 
     file = h5py.File(fileName, 'w')
@@ -510,9 +520,17 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
 #                      #i2=50*i+1,
 #                      )
 
+# negativeSamping(  # fileName='data/data2/0/testneg.h5',
+#         fileName='data/data2/0/neg{}.h5'.format('test'),
+#         observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+#         instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
+#         measurements=("magnetogram","94", "171", "193", "211", "304", '1700'),
+#         i1=900,
+#         # i2=100*(i+1),
+#         i2=901)
 
-
-for i in range(20, 56):
+for i in range(23, 57):
+    print('i={}'.format(i))
     negativeSamping(  # fileName='data/data2/0/testneg.h5',
         fileName='data/data2/0/neg{}.h5'.format(i),
         observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
