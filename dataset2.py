@@ -293,6 +293,10 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
                 instrument = instruments[channelIdx]
                 measurement = measurements[channelIdx]
                 themap = getMap(t, observatory, instrument, measurement)
+                mapt = datetime.datetime.strptime(themap.date.value, '%Y-%m-%dT%H:%M:%S.%f')
+                if (mapt-t) > datetime.timedelta(minutes=10):
+                    print("No map loaded, t={}, {}".format(t,measurement))
+                    return None
                 themaps.append(themap)
             # get submaps
             cmeArCoord = arCoord(arx*unit, ary*unit, art)
@@ -321,6 +325,8 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
         for t in ts:
             try:
                 aData = getSubmap(t, arx, ary, arwidth, arheight, art, Nchannels,)
+                if not aData:
+                    continue
                 DATA.append(aData)
             except ValueError:
                 print("AR too close to the edge or nodata ({},{}) ({},{})".format(arx,ary,arwidth,arheight))
@@ -407,6 +413,10 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
                 instrument = instruments[channelIdx]
                 measurement = measurements[channelIdx]
                 themap = getMap(t, observatory, instrument, measurement)
+                mapt = datetime.datetime.strptime(themap.date.value,'%Y-%m-%dT%H:%M:%S.%f')
+                if (mapt-t) > datetime.timedelta(minutes=10):
+                    print("No map loaded, t={}, {}".format(t,measurement))
+                    return None
                 themaps.append(themap)
             # get submaps
             cmeArCoord = arCoord(arx*unit, ary*unit, art)
@@ -436,8 +446,11 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
         ts = list(pd.date_range(t1, t2, freq=freq))
         Nchannels = len(instruments)
         for t in ts:
+            print('t={}'.format(t))
             try:
                 aData = getSubmap(t, arx, ary, arwidth, arheight, art, Nchannels,)
+                if not aData:
+                    continue
                 DATA.append(aData)
             except ValueError:
                 print("AR too close to the edge or nodata ({},{}) ({},{})".format(arx,ary,arwidth,arheight))
@@ -496,36 +509,19 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
 #                      i2=50 * (i + 1),
 #                      #i2=50*i+1,
 #                      )
-positiveSampling(fileName='data/data2/1/pos{}.h5'.format(21),
-                     #fileName='data/data2/1/pos{}.h5'.format('test'),
-                     freq='30min',
-                     observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                     instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
-                     measurements=("94", "171", "193", "211", "304", "magnetogram", '1700'),
-                     imgSize=256,
-                     i1=50 * 21,
-                     i2=1054,
-                     #i2=50*i+1,
-                     )
 
 
-# for i in range(0, 28):
-#     negativeSamping(  # fileName='data/data2/0/testneg.h5',
-#         fileName='data/data2/0/neg{}.h5'.format(i),
-#         observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-#         instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
-#         measurements=("94", "171", "193", "211", "304", "magnetogram", '1700'),
-#         i1=50 * i,
-#         # i2=100*(i+1),
-#         i2=50 * (i + 1))
-negativeSamping(  # fileName='data/data2/0/testneg.h5',
-        fileName='data/data2/0/neg{}.h5'.format(28),
+
+for i in range(20, 56):
+    negativeSamping(  # fileName='data/data2/0/testneg.h5',
+        fileName='data/data2/0/neg{}.h5'.format(i),
         observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
         instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
         measurements=("94", "171", "193", "211", "304", "magnetogram", '1700'),
-        i1=50 * 28,
+        i1=25 * i,
         # i2=100*(i+1),
-        i2=1426)
+        i2=25 * (i + 1))
+
 #1054
 #1426
 print('dd')
