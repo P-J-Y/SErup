@@ -5,14 +5,18 @@
 # 应该处理一下AR位置太边缘，否则数据太少了
 import json
 import datetime
+import os
+import time
 
 import cv2
 import pandas as pd
+import requests
 from astropy.coordinates import SkyCoord
 from sunpy.coordinates import frames
 from sunpy.map import Map
 from sunpy.net import Fido
 from sunpy.net import attrs as a
+import sys
 import numpy as np
 import h5py
 import astropy.units as u
@@ -525,21 +529,67 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
 #         observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
 #         instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
 #         measurements=("magnetogram","94", "171", "193", "211", "304", '1700'),
-#         i1=900,
+#         i1=51*25,
 #         # i2=100*(i+1),
-#         i2=901)
+#         i2=25*51+1)
 
-for i in range(23, 57):
+def keep_connect(url="https://baidu.com"):
+    connected = False
+    while not connected:
+        try:
+            r = requests.get(url, timeout=5)
+            code = r.status_code
+            if code == 200:
+                connected = True
+                return True
+            else:
+                print("未连接，等待10s")
+                time.sleep(10)
+                continue
+        except:
+            print("未连接，等待10s")
+            time.sleep(10)
+            continue
+        # finally:
+        #     "未连接，等待10s"
+        #     time.sleep(10)
+
+
+
+for i in range(48, 57):
     print('i={}'.format(i))
-    negativeSamping(  # fileName='data/data2/0/testneg.h5',
-        fileName='data/data2/0/neg{}.h5'.format(i),
-        observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-        instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
-        measurements=("magnetogram","94", "171", "193", "211", "304", '1700'),
-        i1=25 * i,
-        # i2=100*(i+1),
-        i2=25 * (i + 1))
+    done = False
+    while not done:
+        try:
+            negativeSamping(  # fileName='data/data2/0/testneg.h5',
+                fileName='data/data2/0/neg{}.h5'.format(i),
+                observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
+                measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
+                i1=25 * i,
+                # i2=100*(i+1),
+                i2=25 * (i + 1))
+            done = True
+        except (RuntimeError,IOError):
+            print("RuntimeError/IOError 检查网络连接是否正常")
+            intc = keep_connect()
+            print("网络连接正常 检查Helioviewer网站连接是否正常")
+            url = 'https://helioviewer.org'
+            hvc = keep_connect(url=url)
+            print('连接正常，重新运行程序')
+            dirname = 'C:/Users/pjy/sunpy/data'
+            # 把最近下载的文件删除（因为这个文件很可能是坏的）
+            dir_list = os.listdir(dirname)
+            if dir_list:
+                dir_list = sorted(dir_list,
+                                  key=lambda x: os.path.getctime(os.path.join(dirname, x)))
+                os.remove(dirname + '/' + dir_list[-1])
+            continue
+
+
+
+
 
 #1054
 #1426
-print('dd')
+print('done')
