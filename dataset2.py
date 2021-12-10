@@ -328,6 +328,7 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
         ts = list(pd.date_range(t1, t2, freq=freq))
         Nchannels = len(instruments)
         for t in ts:
+            print('t={}'.format(t))
             try:
                 aData = getSubmap(t, arx, ary, arwidth, arheight, art, Nchannels,)
             except ValueError:
@@ -509,20 +510,20 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
     file.create_dataset('DATA', data=np.array(DATA))
     file.close()
 
-# for i in range(0,21):
-# # for i in range(13, 14):
-#     print('i={}'.format(i))
-#     positiveSampling(fileName='data/data2/1/pos{}.h5'.format(i),
-#                      #fileName='data/data2/1/pos{}.h5'.format('test'),
-#                      freq='30min',
-#                      observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-#                      instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
-#                      measurements=("magnetogram","94", "171", "193", "211", "304", '1700'),
-#                      imgSize=256,
-#                      i1=50 * i,
-#                      i2=50 * (i + 1),
-#                      #i2=50*i+1,
-#                      )
+for i in range(0,42):
+# for i in range(13, 14):
+    print('i={}'.format(i))
+    positiveSampling(fileName='data/data2/1/pos{}.h5'.format(i),
+                     #fileName='data/data2/1/pos{}.h5'.format('test'),
+                     freq='30min',
+                     observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                     instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
+                     measurements=("magnetogram","94", "171", "193", "211", "304", '1700'),
+                     imgSize=256,
+                     i1=25 * i,
+                     i2=25 * (i + 1),
+                     #i2=50*i+1,
+                     )
 
 # negativeSamping(  # fileName='data/data2/0/testneg.h5',
 #         fileName='data/data2/0/neg{}.h5'.format('test'),
