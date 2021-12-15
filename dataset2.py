@@ -571,13 +571,13 @@ def keep_connect(url="https://baidu.com"):
 #             os.remove(dirname + '/' + dir_list[-1])
 #         continue
 
-for i in range(48, 57):
+for i in range(15, 20):
     print('i={}'.format(i))
     done = False
     while not done:
         try:
-            negativeSamping(  # fileName='data/data2/0/testneg.h5',
-                fileName='data/data2/0/neg{}.h5'.format(i),
+            positiveSampling(  # fileName='data/data2/1/testneg.h5',
+                fileName='data/data2/1/pos{}.h5'.format(i),
                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
                 instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
                 measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
