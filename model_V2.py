@@ -7,7 +7,9 @@ from tensorflow.keras.layers import Input, Dense, Activation, ZeroPadding2D, Bat
 import tensorflow.keras.regularizers as tfkreg
 from tensorflow.keras.models import Model,Sequential
 import matplotlib as mpl
-
+from tensorflow.keras.applications.vgg16 import VGG16
+from tensorflow.keras.applications.inception_v3 import InceptionV3
+from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
 from matplotlib.pyplot import imshow
 
 import V1_utils
@@ -128,6 +130,116 @@ def modelV2(input_shape,params):
 
     return model
 
+def model_vgg16(input_shape,params):
+
+    X_input = Input(input_shape)
+    #X = Conv2D(3, (1, 1), strides=(1, 1))(X_input)
+    keras_vgg16 = VGG16(include_top=False, weights="imagenet", input_shape=input_shape,pooling='max')
+    vgg16_flower = Sequential()
+    vgg16_flower.add(Flatten(input_shape=keras_vgg16.output_shape[1:]))
+    vgg16_flower.add(Dropout(0.3))
+    vgg16_flower.add(Dense(256, activation="relu"))
+    vgg16_flower.add(Dropout(0.5))
+    vgg16_flower.add(Dense(1, activation='sigmoid'))
+    predictons = vgg16_flower(keras_vgg16(X_input))
+
+    model_vgg16 = Model(inputs=X_input, outputs=predictons)
+
+    # for layer in keras_vgg16.layers:
+    #     layer.trainable = False
+    # keras_vgg16.layers[-1].trainable = True
+    # keras_vgg16.layers[-2].trainable = True
+    # keras_vgg16.layers[-3].trainable = True
+    # keras_vgg16.layers[-4].trainable = True
+
+
+    for i in range(0,4):
+        keras_vgg16.layers[i].trainable = False
+
+    # for x in model_vgg16.trainable_weights:
+    #     print(x.name)
+    # print('\n')
+    # for x in model_vgg16.non_trainable_weights:
+    #     print(x.name)
+    # print('\n')
+
+    model_vgg16.summary()
+
+    return model_vgg16
+
+def model_inception3(input_shape,params):
+    # inception3 比2加入了BN
+    X_input = Input(input_shape)
+    # X = Conv2D(3, (1, 1), strides=(1, 1))(X_input)
+    keras_InceptionV3 = InceptionV3(include_top=False, weights="imagenet", input_shape=input_shape,pooling='max')
+    InceptionV3_flower = Sequential()
+    InceptionV3_flower.add(Flatten(input_shape=keras_InceptionV3.output_shape[1:]))
+    InceptionV3_flower.add(Dropout(0.3))
+    InceptionV3_flower.add(Dense(256, activation="relu"))
+    InceptionV3_flower.add(Dropout(0.5))
+    InceptionV3_flower.add(Dense(1, activation='sigmoid'))
+    predictons = InceptionV3_flower(keras_InceptionV3(X_input))
+
+    model_InceptionV3 = Model(inputs=X_input, outputs=predictons)
+    # for layer in keras_InceptionV3.layers:
+    #     layer.trainable = False
+    # keras_InceptionV3.layers[-1].trainable = True
+    # keras_InceptionV3.layers[-2].trainable = True
+    # keras_InceptionV3.layers[-3].trainable = True
+    # keras_InceptionV3.layers[-4].trainable = True
+
+    for i in range(0, 4):
+        keras_InceptionV3.layers[i].trainable = False
+    #
+    #
+    #
+    # for x in model_vgg16.trainable_weights:
+    #     print(x.name)
+    # print('\n')
+    # for x in model_vgg16.non_trainable_weights:
+    #     print(x.name)
+    # print('\n')
+
+    model_InceptionV3.summary()
+
+    return model_InceptionV3
+
+def model_mobile2(input_shape,params):
+    #3好像还更好，但是好像库里没有？
+    X_input = Input(input_shape)
+    # X = Conv2D(3, (1, 1), strides=(1, 1))(X_input)
+    keras_MobileNetV2 = MobileNetV2(include_top=False, weights="imagenet", input_shape=input_shape, pooling='max')
+    MobileNetV2_flower = Sequential()
+    MobileNetV2_flower.add(Flatten(input_shape=keras_MobileNetV2.output_shape[1:]))
+    MobileNetV2_flower.add(Dropout(0.3))
+    MobileNetV2_flower.add(Dense(256, activation="relu"))
+    MobileNetV2_flower.add(Dropout(0.5))
+    MobileNetV2_flower.add(Dense(1, activation='sigmoid'))
+    predictons = MobileNetV2_flower(keras_MobileNetV2(X_input))
+
+    model_MobileNetV2 = Model(inputs=X_input, outputs=predictons)
+    # for layer in keras_MobileNetV2.layers:
+    #     layer.trainable = False
+    # keras_MobileNetV2.layers[-1].trainable = True
+    # keras_MobileNetV2.layers[-2].trainable = True
+    # keras_MobileNetV2.layers[-3].trainable = True
+    # keras_MobileNetV2.layers[-4].trainable = True
+
+    for i in range(0, 4):
+        keras_MobileNetV2.layers[i].trainable = False
+    #
+    #
+    #
+    # for x in model_vgg16.trainable_weights:
+    #     print(x.name)
+    # print('\n')
+    # for x in model_vgg16.non_trainable_weights:
+    #     print(x.name)
+    # print('\n')
+
+    model_MobileNetV2.summary()
+
+    return model_MobileNetV2
 
 if __name__ == '__main__':
     K.set_image_data_format('channels_last')
@@ -239,3 +351,5 @@ if __name__ == '__main__':
     cb.set_label('log2[BatchSize]', labelpad=-1)
     plt.savefig('model/v2/hyparams_v2_{}.jpg'.format(workidx))
     print('done')
+
+    #works: #1 test #2 model_v2 #3 vgg-16 keep few layers #4 vgg-16 keep no layers
