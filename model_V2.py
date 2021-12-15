@@ -200,7 +200,7 @@ if __name__ == '__main__':
             plt.legend()
             plt.xlabel('epoch')
             plt.ylabel('loss')
-            plt.savefig('figure/log/loss.jpg')
+            plt.savefig('figure/log/loss_v2_{}.jpg'.format(workidx))
         return {
             'loss': -cvf1s,
             'status': STATUS_OK
