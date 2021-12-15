@@ -9,7 +9,6 @@ import tensorflow.keras.applications.resnet50
 from tensorflow.keras import layers
 from tensorflow.keras.layers import Input, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D
 from tensorflow.keras.layers import AveragePooling2D, MaxPooling2D, Dropout, GlobalMaxPooling2D, GlobalAveragePooling2D
-from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
 import tensorflow.keras.regularizers as tfkreg
 import matplotlib.pyplot as plt

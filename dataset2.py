@@ -541,6 +541,8 @@ def keep_connect(url="https://baidu.com"):
         #     time.sleep(10)
 
 
+####################get dataset#######################
+
 # i = 50
 # print('i={}'.format(i))
 # done = False
@@ -571,40 +573,71 @@ def keep_connect(url="https://baidu.com"):
 #             os.remove(dirname + '/' + dir_list[-1])
 #         continue
 
-for i in range(15, 20):
-    print('i={}'.format(i))
-    done = False
-    while not done:
-        try:
-            positiveSampling(  # fileName='data/data2/1/testneg.h5',
-                fileName='data/data2/1/pos{}.h5'.format(i),
-                observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
-                measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
-                i1=25 * i,
-                # i2=100*(i+1),
-                i2=25 * (i + 1))
-            done = True
-        except (RuntimeError,IOError):
-            print("RuntimeError/IOError 检查网络连接是否正常")
-            intc = keep_connect()
-            print("网络连接正常 检查Helioviewer网站连接是否正常")
-            url = 'https://helioviewer.org'
-            hvc = keep_connect(url=url)
-            print('连接正常，重新运行程序')
-            dirname = 'C:/Users/pjy/sunpy/data'
-            # 把最近下载的文件删除（因为这个文件很可能是坏的）
-            dir_list = os.listdir(dirname)
-            if dir_list:
-                dir_list = sorted(dir_list,
-                                  key=lambda x: os.path.getctime(os.path.join(dirname, x)))
-                os.remove(dirname + '/' + dir_list[-1])
-            continue
-
-
-
+# for i in range(15, 20):
+#     print('i={}'.format(i))
+#     done = False
+#     while not done:
+#         try:
+#             positiveSampling(  # fileName='data/data2/1/testneg.h5',
+#                 fileName='data/data2/1/pos{}.h5'.format(i),
+#                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+#                 instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
+#                 measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
+#                 i1=25 * i,
+#                 # i2=100*(i+1),
+#                 i2=25 * (i + 1))
+#             done = True
+#         except (RuntimeError,IOError):
+#             print("RuntimeError/IOError 检查网络连接是否正常")
+#             intc = keep_connect()
+#             print("网络连接正常 检查Helioviewer网站连接是否正常")
+#             url = 'https://helioviewer.org'
+#             hvc = keep_connect(url=url)
+#             print('连接正常，重新运行程序')
+#             dirname = 'C:/Users/pjy/sunpy/data'
+#             # 把最近下载的文件删除（因为这个文件很可能是坏的）
+#             dir_list = os.listdir(dirname)
+#             if dir_list:
+#                 dir_list = sorted(dir_list,
+#                                   key=lambda x: os.path.getctime(os.path.join(dirname, x)))
+#                 os.remove(dirname + '/' + dir_list[-1])
+#             continue
 
 
 #1054
 #1426
+
+
+##################################merge dataset###########################
+def mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256):
+    files = os.listdir(filePath)
+    output = np.zeros((len(files)*300,imgSize,imgSize,len(waveidxs)),'single')
+    labels = np.zeros(len(files)*300,'int32')
+    outputpointer = 0
+    for f in files:
+        FILE = h5py.File(filePath+f)
+        DATA = np.array(FILE['DATA'])
+        FILE.close()
+        DATAnum = np.shape(DATA)[0]
+        # [np.all(DATA[i,:,:,:]==0) for i in range(DATAnum)]
+        output[outputpointer:(outputpointer+DATAnum),:,:,:] = DATA[:,:,:,waveidxs]
+        if 'pos' in f:
+            labels[outputpointer:(outputpointer+DATAnum)] = 1
+        elif 'neg' in f:
+            labels[outputpointer:(outputpointer+DATAnum)] = 0
+        else:
+            raise ValueError('文件名格式不对，应该为包含neg或pos的格式，以区分正负样本')
+        outputpointer = outputpointer + DATAnum
+    FILE = h5py.File(outputfile,'w')
+    FILE.create_dataset("x",data=output[:outputpointer,:,:,:])
+    FILE.create_dataset("y", data=labels[:outputpointer])
+    FILE.close()
+
+filePath = 'E:/GithubLocal/SErup/data/data2/train/'
+outputfile = 'E:/GithubLocal/SErup/data/v2/v2_1/train.h5'
+mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256)
+
 print('done')
+
+"data" \
+"v2_1: 193, 1700, mag"
