@@ -263,13 +263,212 @@ if __name__ == '__main__':
     }
 
     f1 = 0
-    workidx=2
+    workidx=3
+    print('work {}'.format(workidx))
     maxtrailnum = 50
     def trainAmodel(params):
         global xtrain, xdev, ytrain, ydev
         global f1, workidx
         print('Params testing: ', params)
-        model_v1 = modelV2(xtrain.shape[1:], params)
+        model_v1 = model_vgg16(xtrain.shape[1:], params)
+        opt = tensorflow.keras.optimizers.Adam(lr=params['lr'])
+        model_v1.compile(loss="binary_crossentropy", metrics=['accuracy'], optimizer=opt)
+        steps_per_epoch = (np.shape(xtrain)[0] + params['batch_size'] - 1) // params['batch_size']
+        # metrics = V1_utils.Metrics(test_data=(X_test[::10], Y_test[::10]), train_data=(X_train[::100], Y_train[::100]))
+
+        from sklearn.utils import class_weight
+        import pandas as pd
+        class_weight = class_weight.compute_class_weight(class_weight='balanced',
+                                                         classes=classes,
+                                                         y=ytrain[:, 0])
+        cw = dict(enumerate(class_weight))
+        early_stopping = EarlyStopping(monitor='val_loss', patience=5, min_delta=0.3, mode='min')
+
+        history = model_v1.fit_generator(generator=data_generator(xtrain, ytrain, params['batch_size']),
+                                         steps_per_epoch=steps_per_epoch,
+                                         epochs=30,
+                                         verbose=0,
+                                         validation_data=(xdev[::40], ydev[::40]),
+                                         callbacks=[early_stopping],
+                                         # callbacks=[metrics],
+                                         class_weight=cw,
+                                         )
+        # 评估模型
+        batch_size_test = 4
+        preds = model_v1.evaluate_generator(generator=data_generator(xdev, ydev, batch_size_test, cycle=False),verbose=0)
+        print("误差值 = " + str(preds[0]))
+        print("准确度 = " + str(preds[1]))
+        cvres = model_v1.predict_generator(data_generator(xdev,None,4,cycle=False,givey=False), verbose=0)
+        cvf1s, cache = V1_utils.fmeasure(ydev, cvres)
+        p, r = cache
+        print("f1 = {}, precision = {}, recall = {}".format(cvf1s, p, r))
+        if cvf1s > f1:
+            f1 = cvf1s
+            model_v1.save('model/v2/model_v2_{}.h5'.format(workidx))
+            print(f1)
+            plt.figure()
+            plt.plot(history.history['loss'], 'b', label='Training loss')
+            plt.plot(history.history['val_loss'], 'r', label='Validation val_loss')
+            plt.title('Traing and Validation loss')
+            plt.legend()
+            plt.xlabel('epoch')
+            plt.ylabel('loss')
+            plt.savefig('figure/log/loss_v2_{}.jpg'.format(workidx))
+        return {
+            'loss': -cvf1s,
+            'status': STATUS_OK
+        }
+
+
+    trials = Trials()
+    best = fmin(trainAmodel, space, algo=tpe.suggest, max_evals=maxtrailnum, trials=trials)
+
+    filename = 'model/v2/log_v2_{}.npz'.format(workidx)
+    np.savez(filename, trials=trials, best=best)
+
+    print('best')
+    print(best)
+
+    trialNum = len(trials.trials)
+    l2s = np.zeros(trialNum)
+    lrs = np.zeros(trialNum)
+    losses = np.zeros(trialNum)
+    bzs = np.zeros(trialNum)
+    for trialidx in range(trialNum):
+        thevals = trials.trials[trialidx]['misc']['vals'] #如果是从文件中读取，这一行改成trials[]，即不需要后面那个.trails,下面losses那一行同理
+        l2s[trialidx] = thevals['lambda_l2'][0]
+        lrs[trialidx] = thevals['lr'][0]
+        bzs[trialidx] = (thevals['batch_size'][0] + 1)
+        losses[trialidx] = -trials.trials[trialidx]['result']['loss']
+
+    plt.figure()
+    plt.scatter(np.log(lrs), np.log(l2s), c=bzs, s=losses * 100, cmap=mpl.colors.ListedColormap(
+        ["darkorange", "gold", "lawngreen", "lightseagreen"]
+    ))
+    plt.xlabel('ln[lr]')
+    plt.ylabel('ln[λ]')
+    plt.title('f1')
+    cb = plt.colorbar()
+    cb.set_label('log2[BatchSize]', labelpad=-1)
+    plt.savefig('model/v2/hyparams_v2_{}.jpg'.format(workidx))
+    print('done')
+
+    ###############
+
+    space = {
+        'lr': hp.loguniform('lr', -9, 0),
+        'lambda_l2': hp.loguniform('lambda_l2', -8, 0),
+        'batch_size': hp.choice('batch_size', [4,8,16])
+    }
+
+    f1 = 0
+    workidx=4
+    print('work {}'.format(workidx))
+    maxtrailnum = 50
+    def trainAmodel(params):
+        global xtrain, xdev, ytrain, ydev
+        global f1, workidx
+        print('Params testing: ', params)
+        model_v1 = model_inception3(xtrain.shape[1:], params)
+        opt = tensorflow.keras.optimizers.Adam(lr=params['lr'])
+        model_v1.compile(loss="binary_crossentropy", metrics=['accuracy'], optimizer=opt)
+        steps_per_epoch = (np.shape(xtrain)[0] + params['batch_size'] - 1) // params['batch_size']
+        # metrics = V1_utils.Metrics(test_data=(X_test[::10], Y_test[::10]), train_data=(X_train[::100], Y_train[::100]))
+
+        from sklearn.utils import class_weight
+        import pandas as pd
+        class_weight = class_weight.compute_class_weight(class_weight='balanced',
+                                                         classes=classes,
+                                                         y=ytrain[:, 0])
+        cw = dict(enumerate(class_weight))
+        early_stopping = EarlyStopping(monitor='val_loss', patience=5, min_delta=0.3, mode='min')
+
+        history = model_v1.fit_generator(generator=data_generator(xtrain, ytrain, params['batch_size']),
+                                         steps_per_epoch=steps_per_epoch,
+                                         epochs=30,
+                                         verbose=0,
+                                         validation_data=(xdev[::40], ydev[::40]),
+                                         callbacks=[early_stopping],
+                                         # callbacks=[metrics],
+                                         class_weight=cw,
+                                         )
+        # 评估模型
+        batch_size_test = 4
+        preds = model_v1.evaluate_generator(generator=data_generator(xdev, ydev, batch_size_test, cycle=False),verbose=0)
+        print("误差值 = " + str(preds[0]))
+        print("准确度 = " + str(preds[1]))
+        cvres = model_v1.predict_generator(data_generator(xdev,None,4,cycle=False,givey=False), verbose=0)
+        cvf1s, cache = V1_utils.fmeasure(ydev, cvres)
+        p, r = cache
+        print("f1 = {}, precision = {}, recall = {}".format(cvf1s, p, r))
+        if cvf1s > f1:
+            f1 = cvf1s
+            model_v1.save('model/v2/model_v2_{}.h5'.format(workidx))
+            print(f1)
+            plt.figure()
+            plt.plot(history.history['loss'], 'b', label='Training loss')
+            plt.plot(history.history['val_loss'], 'r', label='Validation val_loss')
+            plt.title('Traing and Validation loss')
+            plt.legend()
+            plt.xlabel('epoch')
+            plt.ylabel('loss')
+            plt.savefig('figure/log/loss_v2_{}.jpg'.format(workidx))
+        return {
+            'loss': -cvf1s,
+            'status': STATUS_OK
+        }
+
+
+    trials = Trials()
+    best = fmin(trainAmodel, space, algo=tpe.suggest, max_evals=maxtrailnum, trials=trials)
+
+    filename = 'model/v2/log_v2_{}.npz'.format(workidx)
+    np.savez(filename, trials=trials, best=best)
+
+    print('best')
+    print(best)
+
+    trialNum = len(trials.trials)
+    l2s = np.zeros(trialNum)
+    lrs = np.zeros(trialNum)
+    losses = np.zeros(trialNum)
+    bzs = np.zeros(trialNum)
+    for trialidx in range(trialNum):
+        thevals = trials.trials[trialidx]['misc']['vals'] #如果是从文件中读取，这一行改成trials[]，即不需要后面那个.trails,下面losses那一行同理
+        l2s[trialidx] = thevals['lambda_l2'][0]
+        lrs[trialidx] = thevals['lr'][0]
+        bzs[trialidx] = (thevals['batch_size'][0] + 1)
+        losses[trialidx] = -trials.trials[trialidx]['result']['loss']
+
+    plt.figure()
+    plt.scatter(np.log(lrs), np.log(l2s), c=bzs, s=losses * 100, cmap=mpl.colors.ListedColormap(
+        ["darkorange", "gold", "lawngreen", "lightseagreen"]
+    ))
+    plt.xlabel('ln[lr]')
+    plt.ylabel('ln[λ]')
+    plt.title('f1')
+    cb = plt.colorbar()
+    cb.set_label('log2[BatchSize]', labelpad=-1)
+    plt.savefig('model/v2/hyparams_v2_{}.jpg'.format(workidx))
+    print('done')
+
+    ####'
+
+    space = {
+        'lr': hp.loguniform('lr', -9, 0),
+        'lambda_l2': hp.loguniform('lambda_l2', -8, 0),
+        'batch_size': hp.choice('batch_size', [4,8,16])
+    }
+
+    f1 = 0
+    workidx=5
+    print('work {}'.format(workidx))
+    maxtrailnum = 50
+    def trainAmodel(params):
+        global xtrain, xdev, ytrain, ydev
+        global f1, workidx
+        print('Params testing: ', params)
+        model_v1 = model_mobile2(xtrain.shape[1:], params)
         opt = tensorflow.keras.optimizers.Adam(lr=params['lr'])
         model_v1.compile(loss="binary_crossentropy", metrics=['accuracy'], optimizer=opt)
         steps_per_epoch = (np.shape(xtrain)[0] + params['batch_size'] - 1) // params['batch_size']
