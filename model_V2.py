@@ -282,7 +282,7 @@ if __name__ == '__main__':
                                                          classes=classes,
                                                          y=ytrain[:, 0])
         cw = dict(enumerate(class_weight))
-        early_stopping = EarlyStopping(monitor='val_loss', patience=5, min_delta=0.3, mode='min')
+        early_stopping = EarlyStopping(monitor='val_loss', patience=5, min_delta=0.5, mode='min')
 
         history = model_v1.fit_generator(generator=data_generator(xtrain, ytrain, params['batch_size']),
                                          steps_per_epoch=steps_per_epoch,
@@ -381,7 +381,7 @@ if __name__ == '__main__':
                                                          classes=classes,
                                                          y=ytrain[:, 0])
         cw = dict(enumerate(class_weight))
-        early_stopping = EarlyStopping(monitor='val_loss', patience=5, min_delta=0.3, mode='min')
+        early_stopping = EarlyStopping(monitor='val_loss', patience=5, min_delta=0.5, mode='min')
 
         history = model_v1.fit_generator(generator=data_generator(xtrain, ytrain, params['batch_size']),
                                          steps_per_epoch=steps_per_epoch,
@@ -480,7 +480,7 @@ if __name__ == '__main__':
                                                          classes=classes,
                                                          y=ytrain[:, 0])
         cw = dict(enumerate(class_weight))
-        early_stopping = EarlyStopping(monitor='val_loss', patience=5, min_delta=0.3, mode='min')
+        early_stopping = EarlyStopping(monitor='val_loss', patience=5, min_delta=0.5, mode='min')
 
         history = model_v1.fit_generator(generator=data_generator(xtrain, ytrain, params['batch_size']),
                                          steps_per_epoch=steps_per_epoch,
@@ -551,4 +551,4 @@ if __name__ == '__main__':
     plt.savefig('model/v2/hyparams_v2_{}.jpg'.format(workidx))
     print('done')
 
-    #works: #1 test #2 model_v2 #3 vgg-16 keep few layers #4 vgg-16 keep no layers
+    #works: #1 test #2 model_v2 #3 vgg-16 keep few layers #4 inception 4 layers #5 mobile net 4 layers
