@@ -138,9 +138,10 @@ def model_vgg16(input_shape,params):
     vgg16_flower = Sequential()
     vgg16_flower.add(Flatten(input_shape=keras_vgg16.output_shape[1:]))
     vgg16_flower.add(Dropout(0.3))
-    vgg16_flower.add(Dense(256, activation="relu"))
-    vgg16_flower.add(Dropout(0.5))
-    vgg16_flower.add(Dense(1, activation='sigmoid'))
+    vgg16_flower.add(Dense(256, activation="relu"
+                           ,kernel_regularizer=tfkreg.l2(params['lambda_l2']),))
+    #vgg16_flower.add(Dropout(0.5))
+    vgg16_flower.add(Dense(1, activation='sigmoid',kernel_regularizer=tfkreg.l2(params['lambda_l2'])))
     predictons = vgg16_flower(keras_vgg16(X_input))
 
     model_vgg16 = Model(inputs=X_input, outputs=predictons)
@@ -174,10 +175,8 @@ def model_inception3(input_shape,params):
     keras_InceptionV3 = InceptionV3(include_top=False, weights="imagenet", input_shape=input_shape,pooling='max')
     InceptionV3_flower = Sequential()
     InceptionV3_flower.add(Flatten(input_shape=keras_InceptionV3.output_shape[1:]))
-    InceptionV3_flower.add(Dropout(0.3))
-    InceptionV3_flower.add(Dense(256, activation="relu"))
-    InceptionV3_flower.add(Dropout(0.5))
-    InceptionV3_flower.add(Dense(1, activation='sigmoid'))
+    InceptionV3_flower.add(Dense(256, activation="relu",kernel_regularizer=tfkreg.l2(params['lambda_l2'])))
+    InceptionV3_flower.add(Dense(1, activation='sigmoid',kernel_regularizer=tfkreg.l2(params['lambda_l2'])))
     predictons = InceptionV3_flower(keras_InceptionV3(X_input))
 
     model_InceptionV3 = Model(inputs=X_input, outputs=predictons)
@@ -211,10 +210,8 @@ def model_mobile2(input_shape,params):
     keras_MobileNetV2 = MobileNetV2(include_top=False, weights="imagenet", input_shape=input_shape, pooling='max')
     MobileNetV2_flower = Sequential()
     MobileNetV2_flower.add(Flatten(input_shape=keras_MobileNetV2.output_shape[1:]))
-    MobileNetV2_flower.add(Dropout(0.3))
-    MobileNetV2_flower.add(Dense(256, activation="relu"))
-    MobileNetV2_flower.add(Dropout(0.5))
-    MobileNetV2_flower.add(Dense(1, activation='sigmoid'))
+    MobileNetV2_flower.add(Dense(256, activation="relu",kernel_regularizer=tfkreg.l2(params['lambda_l2'])))
+    MobileNetV2_flower.add(Dense(1, activation='sigmoid',kernel_regularizer=tfkreg.l2(params['lambda_l2'])))
     predictons = MobileNetV2_flower(keras_MobileNetV2(X_input))
 
     model_MobileNetV2 = Model(inputs=X_input, outputs=predictons)
@@ -263,7 +260,7 @@ if __name__ == '__main__':
     }
 
     f1 = 0
-    workidx=3
+    workidx=6
     print('work {}'.format(workidx))
     maxtrailnum = 50
     def trainAmodel(params):
@@ -362,7 +359,7 @@ if __name__ == '__main__':
     }
 
     f1 = 0
-    workidx=4
+    workidx=7
     print('work {}'.format(workidx))
     maxtrailnum = 50
     def trainAmodel(params):
@@ -461,7 +458,7 @@ if __name__ == '__main__':
     }
 
     f1 = 0
-    workidx=5
+    workidx=8
     print('work {}'.format(workidx))
     maxtrailnum = 50
     def trainAmodel(params):
