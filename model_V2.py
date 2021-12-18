@@ -254,9 +254,9 @@ if __name__ == '__main__':
     # batch_size 2 to 16
 
     space = {
-        'lr': hp.loguniform('lr', -9, 0),
+        'lr': hp.loguniform('lr', -9, -2),
         'lambda_l2': hp.loguniform('lambda_l2', -8, 0),
-        'batch_size': hp.choice('batch_size', [4,8,16])
+        'batch_size': hp.choice('batch_size', [16, ])
     }
 
     f1 = 0
@@ -353,9 +353,9 @@ if __name__ == '__main__':
     ###############
 
     space = {
-        'lr': hp.loguniform('lr', -9, 0),
+        'lr': hp.loguniform('lr', -9, -2),
         'lambda_l2': hp.loguniform('lambda_l2', -8, 0),
-        'batch_size': hp.choice('batch_size', [4,8,16])
+        'batch_size': hp.choice('batch_size', [16,])
     }
 
     f1 = 0
@@ -452,9 +452,9 @@ if __name__ == '__main__':
     ####'
 
     space = {
-        'lr': hp.loguniform('lr', -9, 0),
+        'lr': hp.loguniform('lr', -9, -2),
         'lambda_l2': hp.loguniform('lambda_l2', -8, 0),
-        'batch_size': hp.choice('batch_size', [4,8,16])
+        'batch_size': hp.choice('batch_size', [16, ])
     }
 
     f1 = 0
@@ -548,4 +548,4 @@ if __name__ == '__main__':
     plt.savefig('model/v2/hyparams_v2_{}.jpg'.format(workidx))
     print('done')
 
-    #works: #1 test #2 model_v2 #3 vgg-16 keep few layers #4 inception 4 layers #5 mobile net 4 layers
+    #works: #1 test #2 model_v2 #3 vgg-16 keep few layers #4 inception 4 layers #5 mobile net 4 layers#6-8 三个 4层 不要dropout 而是正则化（batchsize控制到16）
