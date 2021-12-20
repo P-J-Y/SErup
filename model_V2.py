@@ -164,7 +164,7 @@ def model_vgg16(input_shape,params):
     #     print(x.name)
     # print('\n')
 
-    model_vgg16.summary()
+    #model_vgg16.summary()
 
     return model_vgg16
 
@@ -199,7 +199,7 @@ def model_inception3(input_shape,params):
     #     print(x.name)
     # print('\n')
 
-    model_InceptionV3.summary()
+    #model_InceptionV3.summary()
 
     return model_InceptionV3
 
@@ -234,7 +234,7 @@ def model_mobile2(input_shape,params):
     #     print(x.name)
     # print('\n')
 
-    model_MobileNetV2.summary()
+    #model_MobileNetV2.summary()
 
     return model_MobileNetV2
 

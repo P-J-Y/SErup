@@ -12,12 +12,14 @@ import shutil
 import datetime
 
 import cv2
+import h5py
 import tensorflow
 from astropy.coordinates import SkyCoord
 from matplotlib import pyplot as plt
 import pandas as pd
 from sunpy.coordinates import frames
 
+import V1_utils
 import getDataset
 import json
 import numpy as np
@@ -302,82 +304,128 @@ def checkAevent(cmeInfo,
                        fileDir,
                        )
 
+def preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_1/test.h5',):
+    file = h5py.File(fileName)
+    x_orig = np.array(file['x'])
+    y_orig = np.array(file['y'])
+    x = x_orig / 255.
+    y = y_orig.reshape(len(y_orig),1)
+    randperm = np.random.choice(np.arange(len(y)), size=len(y), replace=False)
+    x = x[randperm]
+    y = y[randperm]
+    return x,y
+
+def data_generator(xdata, ydata, batch_size, cycle=True, givey=True):
+    batches = (np.shape(xdata)[0] + batch_size - 1) // batch_size
+    if cycle:#用于训练
+        while True:
+            for i in range(batches):
+                X = xdata[i * batch_size:(i + 1) * batch_size]
+                Y = ydata[i * batch_size:(i + 1) * batch_size]
+                yield (X, Y)
+    elif givey:#用于开发及测试
+        for i in range(batches):
+            X = xdata[i * batch_size:(i + 1) * batch_size]
+            Y = ydata[i * batch_size:(i + 1) * batch_size]
+            yield (X, Y)
+    else:#用于预测
+        for i in range(batches):
+            X = xdata[i * batch_size:(i + 1) * batch_size]
+            yield X
+
 
 if __name__ == '__main__':
+    ##########################
 
-    data = np.load('model/v1/log_v1_2.npz',allow_pickle=True)
-    trials = data['trails']
-    best = data['best']
+    # CEidx = 55
+    for CEidx in range(5, 100, 5):
+        cmelistpath = 'data/cmelist.json'
+        file = open(cmelistpath, 'r', encoding='utf-8')
+        cmelist = json.load(file)
+        ar_search_t1 = 60
+        ar_search_t2 = 20
+        film_t1 = 80
+        film_t2 = 0
+        freq = '2min'
+        ar_threshold = (100, 6)
+        film_path = "figure\\test\\"
 
-    trialNum = trials.shape[0]
-    l2s = np.zeros(trialNum)
-    lrs = np.zeros(trialNum)
-    bzs = np.zeros(trialNum)
-    losses = np.zeros(trialNum)
-    for trialidx in range(trialNum):
-        thevals = trials[trialidx]['misc']['vals']
-        l2s[trialidx] = thevals['lambda_l2'][0]
-        lrs[trialidx] = thevals['lr'][0]
-        bzs[trialidx] = (thevals['batch_size'][0]+1)
-        losses[trialidx] = -trials[trialidx]['result']['loss']
+        theCmeInfo = cmelist[CEidx]
+        try:
+            theArInfo, cache = getDataset.getArInfoWithCmeInfo(theCmeInfo,
+                                                               time_earlier1=ar_search_t1,
+                                                               time_earlier2=ar_search_t2,
+                                                               ar_threshold=ar_threshold,
+                                                               fmt="%Y-%m-%dT%H:%MZ")
+        except AssertionError:
+            continue
 
-    plt.figure()
-    plt.scatter(np.log(lrs), np.log(l2s), c=bzs, s=losses*100, cmap=mpl.colors.ListedColormap(
-    ["darkorange", "gold", "lawngreen", "lightseagreen"]
-))
-    plt.xlabel('ln[lr]')
-    plt.ylabel('ln[λ]')
-    plt.title('f1')
-    cb = plt.colorbar()
-    cb.set_label('log2[BatchSize]', labelpad=-1)
-    plt.savefig('model/v1/hyparams_v1_2.jpg')
 
-    CEidx = 55
+        CEtstart = cache
+        CeCoordStr = theCmeInfo["sourceLocation"]
+        CE_coord = getDataset.getCmeCoord(getDataset.breakCoordStr(CeCoordStr))
+        dists = getDataset.getDists(theArInfo, CE_coord, CEtstart)
+        minDist, minidx, matchFlag = getDataset.arCmeMatch(dists, theArInfo)
 
-    cmelistpath = 'data/cmelist.json'
-    file = open(cmelistpath, 'r', encoding='utf-8')
-    cmelist = json.load(file)
-    ar_search_t1 = 60
-    ar_search_t2 = 20
-    film_t1 = 80
-    film_t2 = 0
-    freq = '2min'
-    ar_threshold = (100, 6)
-    film_path = "figure\\test\\"
+        model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
 
-    theCmeInfo = cmelist[CEidx]
+        checkAevent(theCmeInfo,
+                    CEtstart,
+                    CE_coord,
+                    theArInfo,
+                    model,
+                    time_earlier1=film_t1,
+                    time_earlier2=film_t2,
+                    freq=freq,
+                    observatorys=("SDO", "SDO", "SDO"),
+                    instruments=("HMI", "AIA", "AIA"),
+                    measurements=("magnetogram", "193", "1700"),
+                    imgSize=256,
+                    cmeidx=CEidx,
+                    filmChannel=1,
+                    fmt="%Y-%m-%dT%H:%MZ",
+                    fileDir=os.getcwd() + "\\figure\\test\\v2\\film",
+                    )
 
-    theArInfo, cache = getDataset.getArInfoWithCmeInfo(theCmeInfo,
-                                            time_earlier1=ar_search_t1,
-                                            time_earlier2=ar_search_t2,
-                                            ar_threshold=ar_threshold,
-                                            fmt="%Y-%m-%dT%H:%MZ")
+        print("hhh")
+# xtest, ytest = preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_1/test.h5')
+# model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
+# testres = model.predict_generator(data_generator(xtest, None, 4, cycle=False, givey=False), verbose=0)
+# testf1s, cache = V1_utils.fmeasure(ytest, testres)
+# p, r = cache
+# print("f1 = {}, precision = {}, recall = {}".format(testf1s, p, r))
+########################
 
-    CEtstart = cache
-    CeCoordStr = theCmeInfo["sourceLocation"]
-    CE_coord = getDataset.getCmeCoord(getDataset.breakCoordStr(CeCoordStr))
-    dists = getDataset.getDists(theArInfo, CE_coord, CEtstart)
-    minDist, minidx, matchFlag = getDataset.arCmeMatch(dists, theArInfo)
+#     data = np.load('model/v1/log_v1_2.npz',allow_pickle=True)
+#     trials = data['trails']
+#     best = data['best']
+#
+#     trialNum = trials.shape[0]
+#     l2s = np.zeros(trialNum)
+#     lrs = np.zeros(trialNum)
+#     bzs = np.zeros(trialNum)
+#     losses = np.zeros(trialNum)
+#     for trialidx in range(trialNum):
+#         thevals = trials[trialidx]['misc']['vals']
+#         l2s[trialidx] = thevals['lambda_l2'][0]
+#         lrs[trialidx] = thevals['lr'][0]
+#         bzs[trialidx] = (thevals['batch_size'][0]+1)
+#         losses[trialidx] = -trials[trialidx]['result']['loss']
+#
+#     plt.figure()
+#     plt.scatter(np.log(lrs), np.log(l2s), c=bzs, s=losses*100, cmap=mpl.colors.ListedColormap(
+#     ["darkorange", "gold", "lawngreen", "lightseagreen"]
+# ))
+#     plt.xlabel('ln[lr]')
+#     plt.ylabel('ln[λ]')
+#     plt.title('f1')
+#     cb = plt.colorbar()
+#     cb.set_label('log2[BatchSize]', labelpad=-1)
+#     plt.savefig('model/v1/hyparams_v1_2.jpg')
 
-    model = tensorflow.keras.models.load_model('model/v1/model_v1_3.h5')
 
-    checkAevent(theCmeInfo,
-                CEtstart,
-                CE_coord,
-                theArInfo,
-                model,
-                time_earlier1=film_t1,
-                time_earlier2=film_t2,
-                freq=freq,
-                observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO"),
-                instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI"),
-                measurements=("94", "171", "193", "211", "304", "magnetogram"),
-                imgSize=256,
-                cmeidx=CEidx,
-                filmChannel=2,
-                fmt="%Y-%m-%dT%H:%MZ",
-                fileDir=os.getcwd() + "\\figure\\test\\",
-                )
 
-    print("hhh")
+##################
+
+
 
