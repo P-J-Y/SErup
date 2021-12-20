@@ -216,7 +216,9 @@ def checkAevent(cmeInfo,
                 theRotated_arc = solar_rotate_coordinate(cmeArCoord.transform_to(frames.Helioprojective),
                                                          time=t).transform_to(cmeArCoord.frame)
                 if np.isnan(theRotated_arc.lon.value):
-                    theRotated_arc = cmeArCoord
+                    print("nan rotated AR center")
+                    continue
+                    # theRotated_arc = cmeArCoord
 
 
                 width = arInfo["ar_widths"][aridx]
@@ -338,7 +340,7 @@ if __name__ == '__main__':
     ##########################
 
     # CEidx = 55
-    for CEidx in range(5, 100, 5):
+    for CEidx in range(500, 610, 10):
         cmelistpath = 'data/cmelist.json'
         file = open(cmelistpath, 'r', encoding='utf-8')
         cmelist = json.load(file)
