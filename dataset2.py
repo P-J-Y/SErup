@@ -3,6 +3,7 @@
 # sharp的数据中ar的持续时间一般最长是4hr，超过了会截断，所以会看到一个cme同时match了多个ar，其实是同一个，只不过是不同的时间段
 # sunpy好像有bug 有些连续谱的数据读出来有问题（有nan有且检查不出来），1000个ar间隔30分钟，应该有8000个样本左右，但是这样估计会少很多
 # 应该处理一下AR位置太边缘，否则数据太少了
+# data3 排除了太边缘的活动区
 import json
 import datetime
 import os
@@ -544,40 +545,40 @@ def keep_connect(url="https://baidu.com"):
 
 ####################get dataset#######################
 arlist = h5py.File('data/arlist.h5')
-quiteTable = np.load('data\quiteTable.npz')
-quitearidxs = quiteTable['quitearidxs']
-for i in range(1426):
-    print('i={}'.format(i))
-    done = False
-    while not done:
-        try:
-            negativeSamping(arlist,
-                            quiteTable,
-                            quitearidxs,
-                            # fileName='data/data2/0/testneg.h5',
-                            fileName='data/data3/0/neg{}.h5'.format(i),
-                            observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-                            instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
-                            measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
-                            i1=1 * i,
-                            # i2=100*(i+1),
-                            i2=1 * (i + 1))
-            done = True
-        except (RuntimeError, IOError):
-            print("RuntimeError/IOError 检查网络连接是否正常")
-            intc = keep_connect()
-            print("网络连接正常 检查Helioviewer网站连接是否正常")
-            url = 'https://helioviewer.org'
-            hvc = keep_connect(url=url)
-            print('连接正常，重新运行程序')
-            dirname = 'C:/Users/jy/sunpy/data'
-            # 把最近下载的文件删除（因为这个文件很可能是坏的）
-            dir_list = os.listdir(dirname)
-            if dir_list:
-                dir_list = sorted(dir_list,
-                                  key=lambda x: os.path.getctime(os.path.join(dirname, x)))
-                os.remove(dirname + '/' + dir_list[-1])
-            continue
+# quiteTable = np.load('data\quiteTable.npz')
+# quitearidxs = quiteTable['quitearidxs']
+# for i in range(1426):
+#     print('i={}'.format(i))
+#     done = False
+#     while not done:
+#         try:
+#             negativeSamping(arlist,
+#                             quiteTable,
+#                             quitearidxs,
+#                             # fileName='data/data2/0/testneg.h5',
+#                             fileName='data/data3/0/neg{}.h5'.format(i),
+#                             observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+#                             instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
+#                             measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
+#                             i1=1 * i,
+#                             # i2=100*(i+1),
+#                             i2=1 * (i + 1))
+#             done = True
+#         except (RuntimeError, IOError):
+#             print("RuntimeError/IOError 检查网络连接是否正常")
+#             intc = keep_connect()
+#             print("网络连接正常 检查Helioviewer网站连接是否正常")
+#             url = 'https://helioviewer.org'
+#             hvc = keep_connect(url=url)
+#             print('连接正常，重新运行程序')
+#             dirname = 'C:/Users/pjy/sunpy/data'
+#             # 把最近下载的文件删除（因为这个文件很可能是坏的）
+#             dir_list = os.listdir(dirname)
+#             if dir_list:
+#                 dir_list = sorted(dir_list,
+#                                   key=lambda x: os.path.getctime(os.path.join(dirname, x)))
+#                 os.remove(dirname + '/' + dir_list[-1])
+#             continue
 
 
 matchTable = np.load('data/matchTable.npz', allow_pickle=True)
@@ -611,7 +612,7 @@ for i in range(1054):
             url = 'https://helioviewer.org'
             hvc = keep_connect(url=url)
             print('连接正常，重新运行程序')
-            dirname = 'C:/Users/jy/sunpy/data'
+            dirname = 'C:/Users/pjy/sunpy/data'
             # 把最近下载的文件删除（因为这个文件很可能是坏的）
             dir_list = os.listdir(dirname)
             if dir_list:
