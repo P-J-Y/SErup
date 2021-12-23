@@ -235,7 +235,9 @@ def matchArCme(time_earlier1=24,
 #matchnums,matchidxs = matchArCme()
 # arinfo = creatArDataset()
 
-def positiveSampling(fileName='data/data2/1/testpos.h5',
+def positiveSampling(arlist,
+                     ARidxs,
+                     fileName='data/data2/1/testpos.h5',
                      freq='30min',
                      observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
                      instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
@@ -308,7 +310,8 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
             theRotated_arc = solar_rotate_coordinate(cmeArCoord.transform_to(frames.Helioprojective),
                                                      time=t).transform_to(cmeArCoord.frame)
             if np.isnan(theRotated_arc.lon.value):
-                theRotated_arc = cmeArCoord
+                return None
+                # theRotated_arc = cmeArCoord
             bottom_left = SkyCoord(theRotated_arc.lon - arw*unit / 2,
                                    theRotated_arc.lat - arh*unit / 2,
                                    frame=cmeArCoord.frame)
@@ -338,13 +341,7 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
                 continue
             DATA.append(aData)
 
-    arlist = h5py.File('data/arlist.h5')
-    matchTable = np.load('data/matchTable.npz',allow_pickle=True)
-    matchnums = matchTable['matchnums']
-    matchidxs = matchTable['matchidxs']
-    ARidxs = set(np.concatenate(matchidxs[matchnums!=0]))
-    ARidxs = list(ARidxs)
-    ARidxs.sort()
+
     DATA = []
     showidx=1
     for aridx in ARidxs[i1:i2]:
@@ -358,7 +355,10 @@ def positiveSampling(fileName='data/data2/1/testpos.h5',
     file.create_dataset('DATA',data=np.array(DATA))
     file.close()
 
-def negativeSamping(fileName='data/data2/0/testneg.h5',
+def negativeSamping(arlist,
+                    quiteTable,
+                    quitearidxs,
+                    fileName='data/data2/0/testneg.h5',
                     freq='30min',
                     observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
                     instruments=("AIA", "AIA", "AIA", "AIA", "AIA", "HMI", "AIA"),
@@ -431,7 +431,8 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
             theRotated_arc = solar_rotate_coordinate(cmeArCoord.transform_to(frames.Helioprojective),
                                                      time=t).transform_to(cmeArCoord.frame)
             if np.isnan(theRotated_arc.lon.value):
-                theRotated_arc = cmeArCoord
+                return None
+                # theRotated_arc = cmeArCoord
             bottom_left = SkyCoord(theRotated_arc.lon - arw*unit / 2,
                                    theRotated_arc.lat - arh*unit / 2,
                                    frame=cmeArCoord.frame)
@@ -466,34 +467,34 @@ def negativeSamping(fileName='data/data2/0/testneg.h5',
             DATA.append(aData)
 
 
-    arlist = h5py.File('data/arlist.h5')
-    if new:
-        cmefilepath = 'data/cmefile.json'
-        file = open(cmefilepath, 'r', encoding='utf-8')
-        cmefile = json.load(file)
-        cmenum = len(cmefile)
-
-        cmeTs = [datetime.datetime.strptime(cmefile[i]["startTime"], "%Y-%m-%dT%H:%MZ") for i in range(cmenum)]
-        cmeTdiff = np.diff(cmeTs)
-        quiteflag = cmeTdiff > mindiff
-        quiteidxs = [i for i, x in enumerate(quiteflag) if x]  # idx to idx+1 标号的cme间隔是大于mindiff的
-        quitenum = sum(quiteflag)
-        localnums = np.zeros(quitenum, "int32")
-        quitearidxs = []
-        for j, cmeidx in enumerate(quiteidxs):
-            t1 = cmeTs[cmeidx] + dategap
-            t2 = cmeTs[cmeidx + 1] - dategap
-            t1 = t1.timestamp()
-            t2 = t2.timestamp()
-            localAr = (np.array(arlist["ar_tstarts"]) >= t1) & (np.array(arlist["ar_tends"]) < t2)
-            local_num = sum(localAr)
-            localnums[j] = local_num
-            localidxs = [i for i, x in enumerate(localAr) if x]
-            quitearidxs = quitearidxs + localidxs
-        np.savez('data\quiteTable.npz', quiteidxs=quiteidxs, localnums=localnums, quitearidxs=quitearidxs)
-    else:
-        quiteTable = np.load('data\quiteTable.npz')
-        quitearidxs = quiteTable['quitearidxs']
+    # arlist = h5py.File('data/arlist.h5')
+    # if new:
+    #     cmefilepath = 'data/cmefile.json'
+    #     file = open(cmefilepath, 'r', encoding='utf-8')
+    #     cmefile = json.load(file)
+    #     cmenum = len(cmefile)
+    #
+    #     cmeTs = [datetime.datetime.strptime(cmefile[i]["startTime"], "%Y-%m-%dT%H:%MZ") for i in range(cmenum)]
+    #     cmeTdiff = np.diff(cmeTs)
+    #     quiteflag = cmeTdiff > mindiff
+    #     quiteidxs = [i for i, x in enumerate(quiteflag) if x]  # idx to idx+1 标号的cme间隔是大于mindiff的
+    #     quitenum = sum(quiteflag)
+    #     localnums = np.zeros(quitenum, "int32")
+    #     quitearidxs = []
+    #     for j, cmeidx in enumerate(quiteidxs):
+    #         t1 = cmeTs[cmeidx] + dategap
+    #         t2 = cmeTs[cmeidx + 1] - dategap
+    #         t1 = t1.timestamp()
+    #         t2 = t2.timestamp()
+    #         localAr = (np.array(arlist["ar_tstarts"]) >= t1) & (np.array(arlist["ar_tends"]) < t2)
+    #         local_num = sum(localAr)
+    #         localnums[j] = local_num
+    #         localidxs = [i for i, x in enumerate(localAr) if x]
+    #         quitearidxs = quitearidxs + localidxs
+    #     np.savez('data\quiteTable.npz', quiteidxs=quiteidxs, localnums=localnums, quitearidxs=quitearidxs)
+    # else:
+    #     quiteTable = np.load('data\quiteTable.npz')
+    #     quitearidxs = quiteTable['quitearidxs']
     showidx = 1
     DATA = []
     for aridx in quitearidxs[i1:i2]:
@@ -542,70 +543,86 @@ def keep_connect(url="https://baidu.com"):
 
 
 ####################get dataset#######################
-
-# i = 50
-# print('i={}'.format(i))
-# done = False
-# while not done:
-#     try:
-#         negativeSamping(fileName='data/data2/0/testneg.h5',
-#                         # fileName='data/data2/0/neg{}.h5'.format(i),
-#                         observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-#                         instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
-#                         measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
-#                         i1=25 * i,
-#                         # i2=100*(i+1),
-#                         i2=25 * (i + 1))
-#         done = True
-#     except (RuntimeError, IOError):
-#         print("RuntimeError/IOError 检查网络连接是否正常")
-#         intc = keep_connect()
-#         print("网络连接正常 检查Helioviewer网站连接是否正常")
-#         url = 'https://helioviewer.org'
-#         hvc = keep_connect(url=url)
-#         print('连接正常，重新运行程序')
-#         dirname = 'C:/Users/pjy/sunpy/data'
-#         # 把最近下载的文件删除（因为这个文件很可能是坏的）
-#         dir_list = os.listdir(dirname)
-#         if dir_list:
-#             dir_list = sorted(dir_list,
-#                               key=lambda x: os.path.getctime(os.path.join(dirname, x)))
-#             os.remove(dirname + '/' + dir_list[-1])
-#         continue
-
-# for i in range(15, 20):
-#     print('i={}'.format(i))
-#     done = False
-#     while not done:
-#         try:
-#             positiveSampling(  # fileName='data/data2/1/testneg.h5',
-#                 fileName='data/data2/1/pos{}.h5'.format(i),
-#                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-#                 instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
-#                 measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
-#                 i1=25 * i,
-#                 # i2=100*(i+1),
-#                 i2=25 * (i + 1))
-#             done = True
-#         except (RuntimeError,IOError):
-#             print("RuntimeError/IOError 检查网络连接是否正常")
-#             intc = keep_connect()
-#             print("网络连接正常 检查Helioviewer网站连接是否正常")
-#             url = 'https://helioviewer.org'
-#             hvc = keep_connect(url=url)
-#             print('连接正常，重新运行程序')
-#             dirname = 'C:/Users/pjy/sunpy/data'
-#             # 把最近下载的文件删除（因为这个文件很可能是坏的）
-#             dir_list = os.listdir(dirname)
-#             if dir_list:
-#                 dir_list = sorted(dir_list,
-#                                   key=lambda x: os.path.getctime(os.path.join(dirname, x)))
-#                 os.remove(dirname + '/' + dir_list[-1])
-#             continue
+arlist = h5py.File('data/arlist.h5')
+quiteTable = np.load('data\quiteTable.npz')
+quitearidxs = quiteTable['quitearidxs']
+for i in range(1426):
+    print('i={}'.format(i))
+    done = False
+    while not done:
+        try:
+            negativeSamping(arlist,
+                            quiteTable,
+                            quitearidxs,
+                            # fileName='data/data2/0/testneg.h5',
+                            fileName='data/data3/0/neg{}.h5'.format(i),
+                            observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                            instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
+                            measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
+                            i1=1 * i,
+                            # i2=100*(i+1),
+                            i2=1 * (i + 1))
+            done = True
+        except (RuntimeError, IOError):
+            print("RuntimeError/IOError 检查网络连接是否正常")
+            intc = keep_connect()
+            print("网络连接正常 检查Helioviewer网站连接是否正常")
+            url = 'https://helioviewer.org'
+            hvc = keep_connect(url=url)
+            print('连接正常，重新运行程序')
+            dirname = 'C:/Users/jy/sunpy/data'
+            # 把最近下载的文件删除（因为这个文件很可能是坏的）
+            dir_list = os.listdir(dirname)
+            if dir_list:
+                dir_list = sorted(dir_list,
+                                  key=lambda x: os.path.getctime(os.path.join(dirname, x)))
+                os.remove(dirname + '/' + dir_list[-1])
+            continue
 
 
-#1054
-#1426
+matchTable = np.load('data/matchTable.npz', allow_pickle=True)
+matchnums = matchTable['matchnums']
+matchidxs = matchTable['matchidxs']
+ARidxs = set(np.concatenate(matchidxs[matchnums != 0]))
+ARidxs = list(ARidxs)
+ARidxs.sort()
+for i in range(1054):
+    print('i={}'.format(i))
+    done = False
+    while not done:
+        try:
+            positiveSampling(
+                arlist,
+                ARidxs,
+                # fileName='data/data2/1/testneg.h5',
+                fileName='data/data3/1/pos{}.h5'.format(i),
+                observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
+                measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
+                i1=1 * i,
+                # i2=100*(i+1),
+                i2=1 * (i + 1),
+                )
+            done = True
+        except (RuntimeError,IOError):
+            print("RuntimeError/IOError 检查网络连接是否正常")
+            intc = keep_connect()
+            print("网络连接正常 检查Helioviewer网站连接是否正常")
+            url = 'https://helioviewer.org'
+            hvc = keep_connect(url=url)
+            print('连接正常，重新运行程序')
+            dirname = 'C:/Users/jy/sunpy/data'
+            # 把最近下载的文件删除（因为这个文件很可能是坏的）
+            dir_list = os.listdir(dirname)
+            if dir_list:
+                dir_list = sorted(dir_list,
+                                  key=lambda x: os.path.getctime(os.path.join(dirname, x)))
+                os.remove(dirname + '/' + dir_list[-1])
+            continue
+
+
+#1054 pos
+#1426 neg
 
 
 ##################################merge dataset###########################
@@ -633,9 +650,9 @@ def mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256):
     FILE.create_dataset("y", data=labels[:outputpointer])
     FILE.close()
 
-filePath = 'E:/GithubLocal/SErup/data/data2/train/'
-outputfile = 'E:/GithubLocal/SErup/data/v2/v2_1/train.h5'
-mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256)
+# filePath = 'E:/GithubLocal/SErup/data/data2/train/'
+# outputfile = 'E:/GithubLocal/SErup/data/v2/v2_1/train.h5'
+# mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256)
 
 print('done')
 
