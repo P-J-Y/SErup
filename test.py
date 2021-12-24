@@ -337,65 +337,76 @@ def data_generator(xdata, ydata, batch_size, cycle=True, givey=True):
 
 
 if __name__ == '__main__':
-    ##########################
+    ##########################CME films########################
 
     # CEidx = 55
-    for CEidx in range(500, 610, 10):
-        cmelistpath = 'data/cmelist.json'
-        file = open(cmelistpath, 'r', encoding='utf-8')
-        cmelist = json.load(file)
-        ar_search_t1 = 60
-        ar_search_t2 = 20
-        film_t1 = 80
-        film_t2 = 0
-        freq = '2min'
-        ar_threshold = (100, 6)
-        film_path = "figure\\test\\"
-
-        theCmeInfo = cmelist[CEidx]
-        try:
-            theArInfo, cache = getDataset.getArInfoWithCmeInfo(theCmeInfo,
-                                                               time_earlier1=ar_search_t1,
-                                                               time_earlier2=ar_search_t2,
-                                                               ar_threshold=ar_threshold,
-                                                               fmt="%Y-%m-%dT%H:%MZ")
-        except AssertionError:
-            continue
-
-
-        CEtstart = cache
-        CeCoordStr = theCmeInfo["sourceLocation"]
-        CE_coord = getDataset.getCmeCoord(getDataset.breakCoordStr(CeCoordStr))
-        dists = getDataset.getDists(theArInfo, CE_coord, CEtstart)
-        minDist, minidx, matchFlag = getDataset.arCmeMatch(dists, theArInfo)
-
+    # for CEidx in range(500, 610, 10):
+    #     cmelistpath = 'data/cmelist.json'
+    #     file = open(cmelistpath, 'r', encoding='utf-8')
+    #     cmelist = json.load(file)
+    #     ar_search_t1 = 60
+    #     ar_search_t2 = 20
+    #     film_t1 = 80
+    #     film_t2 = 0
+    #     freq = '2min'
+    #     ar_threshold = (100, 6)
+    #     film_path = "figure\\test\\"
+    #
+    #     theCmeInfo = cmelist[CEidx]
+    #     try:
+    #         theArInfo, cache = getDataset.getArInfoWithCmeInfo(theCmeInfo,
+    #                                                            time_earlier1=ar_search_t1,
+    #                                                            time_earlier2=ar_search_t2,
+    #                                                            ar_threshold=ar_threshold,
+    #                                                            fmt="%Y-%m-%dT%H:%MZ")
+    #     except AssertionError:
+    #         continue
+    #
+    #
+    #     CEtstart = cache
+    #     CeCoordStr = theCmeInfo["sourceLocation"]
+    #     CE_coord = getDataset.getCmeCoord(getDataset.breakCoordStr(CeCoordStr))
+    #     dists = getDataset.getDists(theArInfo, CE_coord, CEtstart)
+    #     minDist, minidx, matchFlag = getDataset.arCmeMatch(dists, theArInfo)
+    #
+    #     model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
+    #
+    #     checkAevent(theCmeInfo,
+    #                 CEtstart,
+    #                 CE_coord,
+    #                 theArInfo,
+    #                 model,
+    #                 time_earlier1=film_t1,
+    #                 time_earlier2=film_t2,
+    #                 freq=freq,
+    #                 observatorys=("SDO", "SDO", "SDO"),
+    #                 instruments=("HMI", "AIA", "AIA"),
+    #                 measurements=("magnetogram", "193", "1700"),
+    #                 imgSize=256,
+    #                 cmeidx=CEidx,
+    #                 filmChannel=1,
+    #                 fmt="%Y-%m-%dT%H:%MZ",
+    #                 fileDir=os.getcwd() + "\\figure\\test\\v2\\film",
+    #                 )
+    #
+    #     print("hhh")
+################### test set performance #######################
+        fileName = 'C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_1/test.h5'
+        # xtest, ytest = preprocessing(fileName=fileName)
+        xtest, ytest = preprocessing(fileName=fileName)
         model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
+        testres = model.predict_generator(data_generator(xtest, None, 4, cycle=False, givey=False), verbose=0)
+        testy = testres>=0.9
+        TP = sum((testy==True) & (ytest==True))
+        FP = sum((testy==True) & (ytest==False))
+        TN = sum((testy==False) & (ytest==False))
+        FN = sum((testy==False) & (ytest==True))
+        print("TP={}, FP={}, TN={}, FN={}".format(TP,FP,TN,FN))
+        testf1s, cache = V1_utils.fmeasure(ytest, testres)
+        p, r = cache
+        print("f1 = {}, precision = {}, recall = {}".format(testf1s, p, r))
 
-        checkAevent(theCmeInfo,
-                    CEtstart,
-                    CE_coord,
-                    theArInfo,
-                    model,
-                    time_earlier1=film_t1,
-                    time_earlier2=film_t2,
-                    freq=freq,
-                    observatorys=("SDO", "SDO", "SDO"),
-                    instruments=("HMI", "AIA", "AIA"),
-                    measurements=("magnetogram", "193", "1700"),
-                    imgSize=256,
-                    cmeidx=CEidx,
-                    filmChannel=1,
-                    fmt="%Y-%m-%dT%H:%MZ",
-                    fileDir=os.getcwd() + "\\figure\\test\\v2\\film",
-                    )
 
-        print("hhh")
-# xtest, ytest = preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_1/test.h5')
-# model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
-# testres = model.predict_generator(data_generator(xtest, None, 4, cycle=False, givey=False), verbose=0)
-# testf1s, cache = V1_utils.fmeasure(ytest, testres)
-# p, r = cache
-# print("f1 = {}, precision = {}, recall = {}".format(testf1s, p, r))
 ########################
 
 #     data = np.load('model/v1/log_v1_2.npz',allow_pickle=True)
