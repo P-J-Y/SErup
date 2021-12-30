@@ -15,7 +15,7 @@ from matplotlib.pyplot import imshow
 import V1_utils
 
 
-def preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_2/test.h5',):
+def preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_2/test.h5',):
     file = h5py.File(fileName)
     x_orig = np.array(file['x'])
     y_orig = np.array(file['y'])
@@ -241,8 +241,8 @@ def model_mobile2(input_shape,params):
 if __name__ == '__main__':
     K.set_image_data_format('channels_last')
     classes = [0, 1]
-    xtrain,ytrain = preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_2/train.h5')
-    xdev,ydev = preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_2/dev.h5')
+    xtrain,ytrain = preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_2/train.h5')
+    xdev,ydev = preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_2/dev.h5')
 
     ################################# hyperopt model #####################################
     from hyperopt import hp, STATUS_OK, Trials, fmin, tpe
