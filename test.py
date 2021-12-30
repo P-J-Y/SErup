@@ -133,9 +133,9 @@ def getCmeSunWithArIndex(cmeTstart,
         idx += 1
 
 
-def checkAevent(cmeInfo,
+def checkAevent(cmelist,
+                cmeStartTimes,
                 cmeTstart,
-                cmeCoord,
                 arInfo,
                 model,
                 time_earlier1=80,
@@ -151,6 +151,10 @@ def checkAevent(cmeInfo,
                 fileDir=os.getcwd() + "\\figure\\test\\",
                 ):
     hv = HelioviewerClient()
+
+    def getCme(t):
+        cmeinfos = np.array(cmelist)[[(i>t) & (i<(t+datetime.timedelta(hours=24))) for i in cmeStartTimes]]
+        return cmeinfos
 
     def getMap(t, observatory, instrument, measurement):
         file = hv.download_jp2(t,
@@ -211,6 +215,8 @@ def checkAevent(cmeInfo,
             ax.set_autoscale_on(False)
             # get submaps
             for aridx in aridxs:
+                if (arInfo["ar_tstarts"][aridx] > t) or (arInfo["ar_tends"][aridx] < t):
+                    continue
 
                 cmeArCoord = arInfo["ar_coords"][aridx]
                 theRotated_arc = solar_rotate_coordinate(cmeArCoord.transform_to(frames.Helioprojective),
@@ -242,17 +248,20 @@ def checkAevent(cmeInfo,
                 yhat = model.predict(np.reshape(aData,(1,imgSize,imgSize,Nchannels))/255.)
                 ax.plot_coord(theRotated_arc, 'x', label=yhat[0][0])
             # Set title.
-            if t < cmeTstart:
-                ax.set_title(timeStrForFig)
-            else:
-                ax.set_title("{} CME".format(timeStrForFig))
-            ax.plot_coord(cmeCoord, "r+", label="cme")
+            ax.set_title(timeStrForFig)
+            cmeinfos = getCme(t)
+            for cmeinfo in cmeinfos:
+                CeCoordStr = cmeinfo["sourceLocation"]
+                CE_coord = getDataset.getCmeCoord(getDataset.breakCoordStr(CeCoordStr))
+                if CE_coord is None:
+                    continue
+                ax.plot_coord(CE_coord, "r+", label="cme")
             plt.legend()
             plt.savefig("{}{}.png".format(mapFileDir, idx), dpi=600)
         else:
             print("no ar at this time")
 
-    def getMeasurementFilm(tstart,
+    def getMeasurementFilm(
                            arInfo,
                            measurement,
                            fileDir,
@@ -300,8 +309,7 @@ def checkAevent(cmeInfo,
 
     #193
     measurement = "193"
-    getMeasurementFilm(cmeTstart,
-                       arInfo,
+    getMeasurementFilm(arInfo,
                        measurement,
                        fileDir,
                        )
@@ -336,75 +344,82 @@ def data_generator(xdata, ydata, batch_size, cycle=True, givey=True):
             yield X
 
 
+
+
 if __name__ == '__main__':
     ##########################CME films########################
 
     # CEidx = 55
-    # for CEidx in range(500, 610, 10):
-    #     cmelistpath = 'data/cmelist.json'
-    #     file = open(cmelistpath, 'r', encoding='utf-8')
-    #     cmelist = json.load(file)
-    #     ar_search_t1 = 60
-    #     ar_search_t2 = 20
-    #     film_t1 = 80
-    #     film_t2 = 0
-    #     freq = '2min'
-    #     ar_threshold = (100, 6)
-    #     film_path = "figure\\test\\"
-    #
-    #     theCmeInfo = cmelist[CEidx]
-    #     try:
-    #         theArInfo, cache = getDataset.getArInfoWithCmeInfo(theCmeInfo,
-    #                                                            time_earlier1=ar_search_t1,
-    #                                                            time_earlier2=ar_search_t2,
-    #                                                            ar_threshold=ar_threshold,
-    #                                                            fmt="%Y-%m-%dT%H:%MZ")
-    #     except AssertionError:
-    #         continue
-    #
-    #
-    #     CEtstart = cache
-    #     CeCoordStr = theCmeInfo["sourceLocation"]
-    #     CE_coord = getDataset.getCmeCoord(getDataset.breakCoordStr(CeCoordStr))
-    #     dists = getDataset.getDists(theArInfo, CE_coord, CEtstart)
-    #     minDist, minidx, matchFlag = getDataset.arCmeMatch(dists, theArInfo)
-    #
-    #     model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
-    #
-    #     checkAevent(theCmeInfo,
-    #                 CEtstart,
-    #                 CE_coord,
-    #                 theArInfo,
-    #                 model,
-    #                 time_earlier1=film_t1,
-    #                 time_earlier2=film_t2,
-    #                 freq=freq,
-    #                 observatorys=("SDO", "SDO", "SDO"),
-    #                 instruments=("HMI", "AIA", "AIA"),
-    #                 measurements=("magnetogram", "193", "1700"),
-    #                 imgSize=256,
-    #                 cmeidx=CEidx,
-    #                 filmChannel=1,
-    #                 fmt="%Y-%m-%dT%H:%MZ",
-    #                 fileDir=os.getcwd() + "\\figure\\test\\v2\\film",
-    #                 )
-    #
-    #     print("hhh")
-################### test set performance #######################
-        fileName = 'C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_1/test.h5'
-        # xtest, ytest = preprocessing(fileName=fileName)
-        xtest, ytest = preprocessing(fileName=fileName)
+    cmelistpath = 'data/cmelist.json'
+    file = open(cmelistpath, 'r', encoding='utf-8')
+    cmelist = json.load(file)
+    cmeStartTimes = [datetime.datetime.strptime(cmei["startTime"], "%Y-%m-%dT%H:%MZ") for cmei in cmelist]
+    ar_search_t1 = 600
+    ar_search_t2 = 20
+    film_t1 = 600
+    film_t2 = 0
+    freq = '15min'
+    ar_threshold = (100, 6)
+    film_path = "figure\\test\\"
+    for CEidx in range(40, 120, 30):
+
+        theCmeInfo = cmelist[CEidx]
+        try:
+            theArInfo, cache = getDataset.getArInfoWithCmeInfo(theCmeInfo,
+                                                               time_earlier1=ar_search_t1,
+                                                               time_earlier2=ar_search_t2,
+                                                               ar_threshold=ar_threshold,
+                                                               fmt="%Y-%m-%dT%H:%MZ")
+        except AssertionError:
+            continue
+
+
+        CEtstart = cache
+
+        # dists = getDataset.getDists(theArInfo, CE_coord, CEtstart)
+        # minDist, minidx, matchFlag = getDataset.arCmeMatch(dists, theArInfo)
+
         model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
-        testres = model.predict_generator(data_generator(xtest, None, 4, cycle=False, givey=False), verbose=0)
-        testy = testres>=0.9
-        TP = sum((testy==True) & (ytest==True))
-        FP = sum((testy==True) & (ytest==False))
-        TN = sum((testy==False) & (ytest==False))
-        FN = sum((testy==False) & (ytest==True))
-        print("TP={}, FP={}, TN={}, FN={}".format(TP,FP,TN,FN))
-        testf1s, cache = V1_utils.fmeasure(ytest, testres)
-        p, r = cache
-        print("f1 = {}, precision = {}, recall = {}".format(testf1s, p, r))
+
+
+        checkAevent(cmelist,
+                    cmeStartTimes,
+                    CEtstart,
+                    theArInfo,
+                    model,
+                    time_earlier1=film_t1,
+                    time_earlier2=film_t2,
+                    freq=freq,
+                    observatorys=("SDO", "SDO", "SDO"),
+                    instruments=("HMI", "AIA", "AIA"),
+                    measurements=("magnetogram", "193", "1700"),
+                    imgSize=256,
+                    cmeidx=CEidx,
+                    filmChannel=1,
+                    fmt="%Y-%m-%dT%H:%MZ",
+                    fileDir=os.getcwd() + "\\figure\\test\\v2_1\\film\\",
+                    )
+
+        print("hhh")
+################### test set performance #######################
+        # fileName = 'C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_1/test.h5'
+        # # xtest, ytest = preprocessing(fileName=fileName)
+        # xtest, ytest = preprocessing(fileName=fileName)
+        # plt.figure()
+        # plt.imshow(xtest[1,:,:,0],cmap='gray')
+        #
+        #
+        # model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
+        # testres = model.predict_generator(data_generator(xtest, None, 4, cycle=False, givey=False), verbose=0)
+        # testy = testres>=0.9
+        # TP = sum((testy==True) & (ytest==True))
+        # FP = sum((testy==True) & (ytest==False))
+        # TN = sum((testy==False) & (ytest==False))
+        # FN = sum((testy==False) & (ytest==True))
+        # print("TP={}, FP={}, TN={}, FN={}".format(TP,FP,TN,FN))
+        # testf1s, cache = V1_utils.fmeasure(ytest, testres)
+        # p, r = cache
+        # print("f1 = {}, precision = {}, recall = {}".format(testf1s, p, r))
 
 
 ########################
