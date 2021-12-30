@@ -627,40 +627,53 @@ def keep_connect(url="https://baidu.com"):
 
 
 ##################################merge dataset###########################
-def mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256):
-    files = os.listdir(filePath)
-    output = np.zeros((len(files)*12,imgSize,imgSize,len(waveidxs)),'single')
-    labels = np.zeros(len(files)*12,'int32')
-    outputpointer = 0
-    for f in files:
-        FILE = h5py.File(filePath+f)
-        DATA = np.array(FILE['DATA'])
-        FILE.close()
-        DATAnum = np.shape(DATA)[0]
-        # [np.all(DATA[i,:,:,:]==0) for i in range(DATAnum)]
-        output[outputpointer:(outputpointer+DATAnum),:,:,:] = DATA[:,:,:,waveidxs]
-        if 'pos' in f:
-            labels[outputpointer:(outputpointer+DATAnum)] = 1
-        elif 'neg' in f:
-            labels[outputpointer:(outputpointer+DATAnum)] = 0
-        else:
-            raise ValueError('文件名格式不对，应该为包含neg或pos的格式，以区分正负样本')
-        outputpointer = outputpointer + DATAnum
-    FILE = h5py.File(outputfile,'w')
-    FILE.create_dataset("x",data=output[:outputpointer,:,:,:])
-    FILE.create_dataset("y", data=labels[:outputpointer])
-    FILE.close()
-
-filePath = 'E:/SErupData/data/data2_2/train/'
-outputfile = 'E:/SErupData/data/v2/v2_2/train.h5'
-mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256)
+# def mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256):
+#     files = os.listdir(filePath)
+#     output = np.zeros((len(files)*12,imgSize,imgSize,len(waveidxs)),'single')
+#     labels = np.zeros(len(files)*12,'int32')
+#     outputpointer = 0
+#     for f in files:
+#         FILE = h5py.File(filePath+f)
+#         DATA = np.array(FILE['DATA'])
+#         FILE.close()
+#         DATAnum = np.shape(DATA)[0]
+#         # [np.all(DATA[i,:,:,:]==0) for i in range(DATAnum)]
+#         output[outputpointer:(outputpointer+DATAnum),:,:,:] = DATA[:,:,:,waveidxs]
+#         if 'pos' in f:
+#             labels[outputpointer:(outputpointer+DATAnum)] = 1
+#         elif 'neg' in f:
+#             labels[outputpointer:(outputpointer+DATAnum)] = 0
+#         else:
+#             raise ValueError('文件名格式不对，应该为包含neg或pos的格式，以区分正负样本')
+#         outputpointer = outputpointer + DATAnum
+#     FILE = h5py.File(outputfile,'w')
+#     FILE.create_dataset("x",data=output[:outputpointer,:,:,:])
+#     FILE.create_dataset("y", data=labels[:outputpointer])
+#     FILE.close()
+#
+# filePath = 'E:/SErupData/data/data2_2/train/'
+# outputfile = 'E:/SErupData/data/v2/v2_2/train.h5'
+# mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256)
 
 ################ plot to see the data ##################
-# fileName = 'C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_1/test.h5'
-# # xtest, ytest = preprocessing(fileName=fileName)
+def preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_1/test.h5',):
+    file = h5py.File(fileName)
+    x_orig = np.array(file['x'])
+    y_orig = np.array(file['y'])
+    x=x_orig
+    y=y_orig
+    #x = x_orig / 255.
+    #y = y_orig.reshape(len(y_orig),1)
+    #randperm = np.random.choice(np.arange(len(y)), size=len(y), replace=False)
+    #x = x[randperm]
+    #y = y[randperm]
+    return x,y
+fileName = 'E:/SErupData/data/v2/v2_2/test.h5'
 # xtest, ytest = preprocessing(fileName=fileName)
-# plt.figure()
-# plt.imshow(xtest[1,:,:,0],cmap='gray')
+xtest, ytest = preprocessing(fileName=fileName)
+plt.figure()
+plt.imshow(xtest[20,:,:,1],cmap='gray')
+plt.show()
 print('done')
 
 # "data" \
