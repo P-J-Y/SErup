@@ -256,13 +256,13 @@ if __name__ == '__main__':
     space = {
         'lr': hp.loguniform('lr', -9, 0),
         'lambda_l2': hp.loguniform('lambda_l2', -9, 0),
-        'batch_size': hp.choice('batch_size', [16,])
+        'batch_size': hp.choice('batch_size', [8,])
     }
 
     f1 = 0
-    workidx=0
+    workidx=5
     print('work {}'.format(workidx))
-    maxtrailnum = 5
+    maxtrailnum = 50
     def trainAmodel(params):
         global xtrain, xdev, ytrain, ydev
         global f1, workidx
@@ -355,3 +355,4 @@ if __name__ == '__main__':
 
 
     # v2_1 works: #1 test #2 model_v2 #3 vgg-16 keep few layers #4 inception 4 layers #5 mobile net 4 layers#6-8 三个 4层 不要dropout 而是正则化（batchsize控制到16）
+    # v2_2 dell # 这电脑上的batch 5 之后是8
