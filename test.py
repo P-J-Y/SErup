@@ -445,19 +445,32 @@ if __name__ == '__main__':
 
 
     model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
-    layeridx=1
+    layeridx=18 # 1 4 7 11 14 18 ...
     #testres = model.predict_generator(data_generator(xtest, None, 4, cycle=False, givey=False), verbose=0)
     intermediate_layer_model = Model(inputs=model.layers[1].input,
                                      outputs=model.layers[1].layers[layeridx].output)
-    intermediate_output = intermediate_layer_model.predict(np.reshape(xtest[0],[1,256,256,3]))
+    intermediate_output = intermediate_layer_model.predict(np.reshape(xtest[20],[1,256,256,3]))
     num_out = np.shape(intermediate_output)[3]
     plt.figure()
+    plt.suptitle(model.layers[1].layers[layeridx].name)
     for plti in range(num_out):
         plt.subplot(np.ceil(np.sqrt(num_out)), np.ceil(np.sqrt(num_out)), plti+1)
         plt.imshow(intermediate_output[0,:,:,plti])#,cmap='gray')
-    plt.title(model.layers[1].layers[layeridx].name)
-    plt.show()
+        plt.axis('off')
+    #plt.title(model.layers[1].layers[layeridx].name)
+    #plt.show()
     plt.savefig("figure/v2/v2_1/convRes/conv{}.png".format(layeridx),dpi=600)
+
+    # plt.figure()
+    # plt.suptitle(input)
+    # for plti in range(3):
+    #     plt.subplot(np.ceil(np.sqrt(3)), np.ceil(np.sqrt(3)), plti + 1)
+    #     plt.imshow(np.reshape(xtest[20],[1,256,256,3])[0, :, :, plti])  # ,cmap='gray')
+    #     plt.axis('off')
+    # # plt.title(model.layers[1].layers[layeridx].name)
+    # # plt.show()
+    # plt.savefig("figure/v2/v2_1/convRes/input.png".format(layeridx), dpi=600)
+
     print('dome')
     ##########################CME films########################
 
