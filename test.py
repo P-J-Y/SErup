@@ -445,22 +445,26 @@ if __name__ == '__main__':
 
 
     model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
-    layeridx=18 # 1 4 7 11 14 18 ...
+    layeridx=299 # 1 4 7 11 14 18 21 22 28 29 30 31 41 44 45 51 52 53 54... 299
     #testres = model.predict_generator(data_generator(xtest, None, 4, cycle=False, givey=False), verbose=0)
     intermediate_layer_model = Model(inputs=model.layers[1].input,
                                      outputs=model.layers[1].layers[layeridx].output)
-    intermediate_output = intermediate_layer_model.predict(np.reshape(xtest[20],[1,256,256,3]))
-    num_out = np.shape(intermediate_output)[3]
-    plt.figure()
-    plt.suptitle(model.layers[1].layers[layeridx].name)
-    for plti in range(num_out):
-        plt.subplot(np.ceil(np.sqrt(num_out)), np.ceil(np.sqrt(num_out)), plti+1)
-        plt.imshow(intermediate_output[0,:,:,plti])#,cmap='gray')
-        plt.axis('off')
-    #plt.title(model.layers[1].layers[layeridx].name)
-    #plt.show()
-    plt.savefig("figure/v2/v2_1/convRes/conv{}.png".format(layeridx),dpi=600)
 
+    #############output###############
+    # intermediate_output = intermediate_layer_model.predict(np.reshape(xtest[20],[1,256,256,3]))
+    # num_out = np.shape(intermediate_output)[3]
+    # plt.figure()
+    # plt.suptitle(model.layers[1].layers[layeridx].name)
+    # for plti in range(num_out):
+    #     plt.subplot(np.ceil(np.sqrt(num_out)), np.ceil(np.sqrt(num_out)), plti+1)
+    #     plt.imshow(intermediate_output[0,:,:,plti])#,cmap='gray')
+    #     plt.axis('off')
+    # #plt.title(model.layers[1].layers[layeridx].name)
+    # #plt.show()
+    # plt.savefig("figure/v2/v2_1/convRes/conv{}.png".format(layeridx),dpi=600)
+
+
+    ##################input##################
     # plt.figure()
     # plt.suptitle(input)
     # for plti in range(3):
@@ -471,6 +475,12 @@ if __name__ == '__main__':
     # # plt.show()
     # plt.savefig("figure/v2/v2_1/convRes/input.png".format(layeridx), dpi=600)
 
+    ############# filter ####################
+    import tensorflow as tf
+    from tf_keras_vis.activation_maximization import ActivationMaximization
+
+
+    img = visualize_activation(model=intermediate_layer_model, filter_indices=0)
     print('dome')
     ##########################CME films########################
 
