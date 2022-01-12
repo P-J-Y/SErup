@@ -437,7 +437,8 @@ if __name__ == '__main__':
     # kernelvisual(model, 1,1)
     #model.summary()
 
-    fileName = 'E:/GithubLocal/SErup/data/v2/v2_1/test.h5'
+    #fileName = 'E:/GithubLocal/SErup/data/v2/v2_1/test.h5'
+    fileName = 'C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_1/test.h5'
     # xtest, ytest = preprocessing(fileName=fileName)
     xtest, ytest = preprocessing(fileName=fileName,seed=True)
     # plt.figure()
@@ -478,9 +479,28 @@ if __name__ == '__main__':
     ############# filter ####################
     import tensorflow as tf
     from tf_keras_vis.activation_maximization import ActivationMaximization
+    from tf_keras_vis.activation_maximization.callbacks import Progress
+    from tf_keras_vis.activation_maximization.input_modifiers import Jitter, Rotate2D
+    from tf_keras_vis.activation_maximization.regularizers import TotalVariation2D, Norm
+    from tf_keras_vis.utils.model_modifiers import ExtractIntermediateLayer, ReplaceToLinear
+    from tf_keras_vis.utils.scores import CategoricalScore
 
+    activation_maximization = \
+        ActivationMaximization(model.layers[1],
+                               model_modifier=[ExtractIntermediateLayer('conv2d_4041'),
+                                               ReplaceToLinear()],
+                               clone=False)
 
-    img = visualize_activation(model=intermediate_layer_model, filter_indices=0)
+    activations = \
+        activation_maximization(CategoricalScore(1),
+                                steps=200,
+                                input_modifiers=[Jitter(jitter=16), Rotate2D(degree=1)],
+                                regularizers=[TotalVariation2D(weight=1.0),
+                                              Norm(weight=0.3, p=1)],
+                                optimizer=tf.keras.optimizers.RMSprop(1.0, 0.999),
+                                callbacks=[Progress()])
+    plt.imshow(activations[0])
+    plt.show()
     print('dome')
     ##########################CME films########################
 
