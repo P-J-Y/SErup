@@ -437,8 +437,8 @@ if __name__ == '__main__':
     # kernelvisual(model, 1,1)
     #model.summary()
 
-    fileName = 'E:/GithubLocal/SErup/data/v2/v2_1/test.h5'
-    # fileName = 'C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_1/test.h5'
+    #fileName = 'E:/GithubLocal/SErup/data/v2/v2_1/test.h5'
+    fileName = 'C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_1/test.h5'
     # xtest, ytest = preprocessing(fileName=fileName)
     xtest, ytest = preprocessing(fileName=fileName,seed=True)
     # plt.figure()
@@ -446,7 +446,7 @@ if __name__ == '__main__':
 
 
     model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
-    layeridx=11 # 1 4 7 11 14 18 21 22 28 29 30 31 41 44 45 51 52 53 54... 299
+    layeridx=4 # 1 4 7 11 14 18 21 22 28 29 30 31 41 44 45 51 52 53 54... 299
     #testres = model.predict_generator(data_generator(xtest, None, 4, cycle=False, givey=False), verbose=0)
     intermediate_layer_model = Model(inputs=model.layers[1].input,
                                      outputs=model.layers[1].layers[layeridx].output)
@@ -476,75 +476,107 @@ if __name__ == '__main__':
     # # plt.show()
     # plt.savefig("figure/v2/v2_1/convRes/input.png".format(layeridx), dpi=600)
 
-    ############# filter ####################
-    import tensorflow as tf
-    from tf_keras_vis.activation_maximization import ActivationMaximization
-    from tf_keras_vis.activation_maximization.callbacks import Progress
-    from tf_keras_vis.activation_maximization.input_modifiers import Jitter, Rotate2D
-    from tf_keras_vis.activation_maximization.regularizers import TotalVariation2D, Norm
-    from tf_keras_vis.utils.model_modifiers import ExtractIntermediateLayer, ReplaceToLinear
+    ############### Heatmap #######################
+    from matplotlib import cm
+    from tf_keras_vis.gradcam_plus_plus import GradcamPlusPlus
+    from tf_keras_vis.utils.model_modifiers import ReplaceToLinear, ExtractIntermediateLayer
     from tf_keras_vis.utils.scores import CategoricalScore
+    from tf_keras_vis.gradcam import Gradcam
 
-    activation_maximization = \
-        ActivationMaximization(model.layers[1],
-                               model_modifier=[ExtractIntermediateLayer('conv2d_4041'), #filter num = 192
-                                               ReplaceToLinear()],
-                               clone=False)
+    # Create Gradcam object
+    X = np.reshape(xtest[20],[1,256,256,3])
+    # gradcam = Gradcam(model.layers[1],
+    #                   model_modifier=[ExtractIntermediateLayer('conv2d_4041'),  # filter num = 192
+    #                                   ReplaceToLinear()],
+    #                   clone=True)
+    gradcam = Gradcam(model.layers[1],
+                      model_modifier=ReplaceToLinear(),
+                      clone=True)
+    #filter_numbers = [0,30,60,90,120,150,180,210,240]
+    score = CategoricalScore([10,])
+    seed_input = tf.random.uniform((1,256,256,3),0,255)
 
-    filter_numbers = [0,20,40,60,80,100,120,140,160]
-    score = CategoricalScore(filter_numbers)
-    seed_input = tf.random.uniform((9,256,256,3),0,255)
+    # Generate heatmap with GradCAM
+    cam = gradcam(score,
+                  X,
+                  penultimate_layer=-1)
 
-    activations = \
-        activation_maximization(score, #filter index here
-                                steps=200,
-                                seed_input=seed_input,
-                                # input_modifiers=[Jitter(jitter=16), Rotate2D(degree=1)],
-                                # regularizers=[TotalVariation2D(weight=1.0),
-                                #               Norm(weight=0.3, p=1)],
-                                # optimizer=tf.keras.optimizers.RMSprop(1.0, 0.999),
-                                callbacks=[Progress()])
-    plt.figure()
-    for i, filter_number in enumerate(filter_numbers):
-        plt.subplot(3,3,i+1)
-        plt.title('filter[{:03d}]'.format(filter_number))
-        # plt.imshow(activations[i,:,:,0])
-        plt.imshow(activations[i])
-        plt.axis('off')
-    plt.tight_layout()
-    #plt.imshow(activations[0])
-    plt.show()
-    plt.figure()
-    for i, filter_number in enumerate(filter_numbers):
-        plt.subplot(3, 3, i + 1)
-        plt.title('filter[{:03d}]'.format(filter_number))
-        plt.imshow(activations[i,:,:,0])
-        #plt.imshow(activations[i])
-        plt.axis('off')
-    plt.tight_layout()
-    # plt.imshow(activations[0])
-    plt.show()
-    plt.figure()
-    for i, filter_number in enumerate(filter_numbers):
-        plt.subplot(3, 3, i + 1)
-        plt.title('filter[{:03d}]'.format(filter_number))
-        plt.imshow(activations[i,:,:,1])
-        #plt.imshow(activations[i])
-        plt.axis('off')
-    plt.tight_layout()
-    # plt.imshow(activations[0])
-    plt.show()
-    plt.figure()
-    for i, filter_number in enumerate(filter_numbers):
-        plt.subplot(3, 3, i + 1)
-        plt.title('filter[{:03d}]'.format(filter_number))
-        plt.imshow(activations[i,:,:,2])
-        # plt.imshow(activations[i])
-        plt.axis('off')
-    plt.tight_layout()
-    # plt.imshow(activations[0])
-    plt.show()
+    plt.imshow(X[0,:,:,0],cmap='gray')
+    heatmap = np.uint8(cm.jet(cam[0])[..., :3] * 255)
+    plt.imshow(heatmap, cmap='jet', alpha=0.5)  # overlay
+    plt.savefig('C:/Users/jy/Documents/fields/py/SErup/figure/test/v2_1/heatmap/test3.png',dpi=600)
     print('done')
+
+    ############# filter ####################
+    # import tensorflow as tf
+    # from tf_keras_vis.activation_maximization import ActivationMaximization
+    # from tf_keras_vis.activation_maximization.callbacks import Progress
+    # from tf_keras_vis.activation_maximization.input_modifiers import Jitter, Rotate2D
+    # from tf_keras_vis.activation_maximization.regularizers import TotalVariation2D, Norm
+    # from tf_keras_vis.utils.model_modifiers import ExtractIntermediateLayer, ReplaceToLinear
+    # from tf_keras_vis.utils.scores import CategoricalScore
+    #
+    # activation_maximization = \
+    #     ActivationMaximization(model.layers[1],
+    #                            model_modifier=[ExtractIntermediateLayer('conv2d_4041'), #filter num = 192
+    #                                            ReplaceToLinear()],
+    #                            clone=False)
+    #
+    # filter_numbers = [0,3,6,9,12,15,18,21,24]
+    # score = CategoricalScore(filter_numbers)
+    # seed_input = tf.random.uniform((9,256,256,3),0,255)
+    #
+    # activations = \
+    #     activation_maximization(score, #filter index here
+    #                             steps=200,
+    #                             seed_input=seed_input,
+    #                             # input_modifiers=[Jitter(jitter=16), Rotate2D(degree=1)],
+    #                             # regularizers=[TotalVariation2D(weight=1.0),
+    #                             #               Norm(weight=0.3, p=1)],
+    #                             # optimizer=tf.keras.optimizers.RMSprop(1.0, 0.999),
+    #                             callbacks=[Progress()])
+    # plt.figure()
+    # for i, filter_number in enumerate(filter_numbers):
+    #     plt.subplot(3,3,i+1)
+    #     plt.title('filter[{:03d}]'.format(filter_number))
+    #     # plt.imshow(activations[i,:,:,0])
+    #     plt.imshow(activations[i])
+    #     plt.axis('off')
+    # plt.tight_layout()
+    # #plt.imshow(activations[0])
+    # plt.show()
+    # plt.figure()
+    # for i, filter_number in enumerate(filter_numbers):
+    #     plt.subplot(3, 3, i + 1)
+    #     plt.title('filter[{:03d}]'.format(filter_number))
+    #     plt.imshow(activations[i,:,:,0])
+    #     #plt.imshow(activations[i])
+    #     plt.axis('off')
+    # plt.tight_layout()
+    # # plt.imshow(activations[0])
+    # plt.show()
+    # plt.figure()
+    # for i, filter_number in enumerate(filter_numbers):
+    #     plt.subplot(3, 3, i + 1)
+    #     plt.title('filter[{:03d}]'.format(filter_number))
+    #     plt.imshow(activations[i,:,:,1])
+    #     #plt.imshow(activations[i])
+    #     plt.axis('off')
+    # plt.tight_layout()
+    # # plt.imshow(activations[0])
+    # plt.show()
+    # plt.figure()
+    # for i, filter_number in enumerate(filter_numbers):
+    #     plt.subplot(3, 3, i + 1)
+    #     plt.title('filter[{:03d}]'.format(filter_number))
+    #     plt.imshow(activations[i,:,:,2])
+    #     # plt.imshow(activations[i])
+    #     plt.axis('off')
+    # plt.tight_layout()
+    # # plt.imshow(activations[0])
+    # plt.show()
+    # print('done')
+
     ##########################CME films########################
 
     # CEidx = 55
