@@ -437,8 +437,8 @@ if __name__ == '__main__':
     # kernelvisual(model, 1,1)
     #model.summary()
 
-    #fileName = 'E:/GithubLocal/SErup/data/v2/v2_1/test.h5'
-    fileName = 'C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_1/test.h5'
+    fileName = 'E:/GithubLocal/SErup/data/v2/v2_1/test.h5'
+    # fileName = 'C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_1/test.h5'
     # xtest, ytest = preprocessing(fileName=fileName)
     xtest, ytest = preprocessing(fileName=fileName,seed=True)
     # plt.figure()
@@ -446,7 +446,7 @@ if __name__ == '__main__':
 
 
     model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
-    layeridx=299 # 1 4 7 11 14 18 21 22 28 29 30 31 41 44 45 51 52 53 54... 299
+    layeridx=11 # 1 4 7 11 14 18 21 22 28 29 30 31 41 44 45 51 52 53 54... 299
     #testres = model.predict_generator(data_generator(xtest, None, 4, cycle=False, givey=False), verbose=0)
     intermediate_layer_model = Model(inputs=model.layers[1].input,
                                      outputs=model.layers[1].layers[layeridx].output)
@@ -487,21 +487,64 @@ if __name__ == '__main__':
 
     activation_maximization = \
         ActivationMaximization(model.layers[1],
-                               model_modifier=[ExtractIntermediateLayer('conv2d_4041'),
+                               model_modifier=[ExtractIntermediateLayer('conv2d_4041'), #filter num = 192
                                                ReplaceToLinear()],
                                clone=False)
 
+    filter_numbers = [0,20,40,60,80,100,120,140,160]
+    score = CategoricalScore(filter_numbers)
+    seed_input = tf.random.uniform((9,256,256,3),0,255)
+
     activations = \
-        activation_maximization(CategoricalScore(1),
+        activation_maximization(score, #filter index here
                                 steps=200,
-                                input_modifiers=[Jitter(jitter=16), Rotate2D(degree=1)],
-                                regularizers=[TotalVariation2D(weight=1.0),
-                                              Norm(weight=0.3, p=1)],
-                                optimizer=tf.keras.optimizers.RMSprop(1.0, 0.999),
+                                seed_input=seed_input,
+                                # input_modifiers=[Jitter(jitter=16), Rotate2D(degree=1)],
+                                # regularizers=[TotalVariation2D(weight=1.0),
+                                #               Norm(weight=0.3, p=1)],
+                                # optimizer=tf.keras.optimizers.RMSprop(1.0, 0.999),
                                 callbacks=[Progress()])
-    plt.imshow(activations[0])
+    plt.figure()
+    for i, filter_number in enumerate(filter_numbers):
+        plt.subplot(3,3,i+1)
+        plt.title('filter[{:03d}]'.format(filter_number))
+        # plt.imshow(activations[i,:,:,0])
+        plt.imshow(activations[i])
+        plt.axis('off')
+    plt.tight_layout()
+    #plt.imshow(activations[0])
     plt.show()
-    print('dome')
+    plt.figure()
+    for i, filter_number in enumerate(filter_numbers):
+        plt.subplot(3, 3, i + 1)
+        plt.title('filter[{:03d}]'.format(filter_number))
+        plt.imshow(activations[i,:,:,0])
+        #plt.imshow(activations[i])
+        plt.axis('off')
+    plt.tight_layout()
+    # plt.imshow(activations[0])
+    plt.show()
+    plt.figure()
+    for i, filter_number in enumerate(filter_numbers):
+        plt.subplot(3, 3, i + 1)
+        plt.title('filter[{:03d}]'.format(filter_number))
+        plt.imshow(activations[i,:,:,1])
+        #plt.imshow(activations[i])
+        plt.axis('off')
+    plt.tight_layout()
+    # plt.imshow(activations[0])
+    plt.show()
+    plt.figure()
+    for i, filter_number in enumerate(filter_numbers):
+        plt.subplot(3, 3, i + 1)
+        plt.title('filter[{:03d}]'.format(filter_number))
+        plt.imshow(activations[i,:,:,2])
+        # plt.imshow(activations[i])
+        plt.axis('off')
+    plt.tight_layout()
+    # plt.imshow(activations[0])
+    plt.show()
+    print('done')
     ##########################CME films########################
 
     # CEidx = 55
