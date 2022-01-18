@@ -241,8 +241,8 @@ def model_mobile2(input_shape,params):
 if __name__ == '__main__':
     K.set_image_data_format('channels_last')
     classes = [0, 1]
-    xtrain,ytrain = preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_2/train.h5')
-    xdev,ydev = preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_2/dev.h5')
+    xtrain,ytrain = preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_2/train.h5')
+    xdev,ydev = preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_2/dev.h5')
 
     ################################# hyperopt model #####################################
     from hyperopt import hp, STATUS_OK, Trials, fmin, tpe
@@ -254,13 +254,13 @@ if __name__ == '__main__':
     # batch_size 2 to 16
 
     space = {
-        'lr': hp.loguniform('lr', -9, 0),
-        'lambda_l2': hp.loguniform('lambda_l2', -9, 0),
-        'batch_size': hp.choice('batch_size', [8,])
+        'lr': hp.loguniform('lr', -10, -3),
+        'lambda_l2': hp.loguniform('lambda_l2', -10, -3),
+        'batch_size': hp.choice('batch_size', [16,])
     }
 
     f1 = 0
-    workidx=5
+    workidx=6
     print('work {}'.format(workidx))
     maxtrailnum = 50
     def trainAmodel(params):

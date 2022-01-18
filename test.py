@@ -18,6 +18,7 @@ from astropy.coordinates import SkyCoord
 from matplotlib import pyplot as plt
 import pandas as pd
 from sunpy.coordinates import frames
+from tensorflow.python.keras.models import Model
 
 import V1_utils
 import getDataset
@@ -314,12 +315,14 @@ def checkAevent(cmelist,
                        fileDir,
                        )
 
-def preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_1/test.h5',):
+def preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_1/test.h5',seed=False):
     file = h5py.File(fileName)
     x_orig = np.array(file['x'])
     y_orig = np.array(file['y'])
     x = x_orig / 255.
     y = y_orig.reshape(len(y_orig),1)
+    if seed:
+        np.random.seed(233)
     randperm = np.random.choice(np.arange(len(y)), size=len(y), replace=False)
     x = x[randperm]
     y = y[randperm]
@@ -347,60 +350,288 @@ def data_generator(xdata, ydata, batch_size, cycle=True, givey=True):
 
 
 if __name__ == '__main__':
+    ##################### conv filter ######################
+    from keras import backend as K
+    import tensorflow as tf
+
+    # tf.compat.v1.disable_eager_execution()
+
+
+    # 将浮点图像转换成有效图像
+    def deprocess_image(x):
+        # 对张量进行规范化
+        x -= x.mean()
+        x /= (x.std() + 1e-5)
+        x *= 0.1
+        x += 0.5
+        x = np.clip(x, 0, 1)
+        # 转化到RGB数组
+        x *= 255
+        x = np.clip(x, 0, 255).astype('uint8')
+        return x
+
+
+    # 可视化滤波器
+    def kernelvisual(model, layer_target=1, inner_layers=1, num_iterate=100):
+        # 图像尺寸和通道
+        img_height, img_width, num_channels = K.int_shape(model.input)[1:4]
+        num_out = K.int_shape(model.layers[layer_target].layers[inner_layers].output)[-1]
+
+        plt.suptitle('[%s] convnet filters visualizing' % model.layers[layer_target].layers[inner_layers].name)
+
+        print('第%d层有%d个通道' % (inner_layers, num_out))
+        for i_kernal in range(num_out):
+            input_img = model.input
+            # 构建一个损耗函数，使所考虑的层的第n个滤波器的激活最大化，-1层softmax层
+            if layer_target == -1:
+                loss = K.mean(model.output[:, i_kernal])
+            else:
+                loss = K.mean(model.layers[layer_target].layers[inner_layers].output[:, :, :, i_kernal])  # m*28*28*128
+            # 计算图像对损失函数的梯度
+            grads = K.gradients(loss, input_img)[0]
+            # 效用函数通过其L2范数标准化张量
+            grads /= (K.sqrt(K.mean(K.square(grads))) + 1e-5)
+            # 此函数返回给定输入图像的损耗和梯度
+            iterate = K.function([input_img], [loss, grads])
+            # 从带有一些随机噪声的灰色图像开始
+            np.random.seed(0)
+            # 随机图像
+            # input_img_data = np.random.randint(0, 255, (1, img_height, img_width, num_channels))  # 随机
+            # input_img_data = np.zeros((1, img_height, img_width, num_channels))   # 零值
+            input_img_data = np.random.random((1, img_height, img_width, num_channels)) * 20 + 128.  # 随机灰度
+            input_img_data = np.array(input_img_data, dtype=float)
+            failed = False
+            # 运行梯度上升
+            print('####################################', i_kernal + 1)
+            loss_value_pre = 0
+            # 运行梯度上升num_iterate步
+            for i in range(num_iterate):
+                loss_value, grads_value = iterate([input_img_data])
+                if i % int(num_iterate / 5) == 0:
+                    print('Iteration %d/%d, loss: %f' % (i, num_iterate, loss_value))
+                    print('Mean grad: %f' % np.mean(grads_value))
+                    if all(np.abs(grads_val) < 0.000001 for grads_val in grads_value.flatten()):
+                        failed = True
+                        print('Failed')
+                        break
+                    if loss_value_pre != 0 and loss_value_pre > loss_value:
+                        break
+                    if loss_value_pre == 0:
+                        loss_value_pre = loss_value
+                    # if loss_value > 0.99:
+                    #     break
+                input_img_data += grads_value * 1  # e-3
+            img_re = deprocess_image(input_img_data[0])
+            if num_channels == 1:
+                img_re = np.reshape(img_re, (img_height, img_width))
+            else:
+                img_re = np.reshape(img_re, (img_height, img_width, num_channels))
+            plt.subplot(np.ceil(np.sqrt(num_out)), np.ceil(np.sqrt(num_out)), i_kernal + 1)
+            plt.imshow(img_re)  # , cmap='gray'
+            plt.axis('off')
+
+        plt.show()
+
+
+    model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
+    # kernelvisual(model, 1,1)
+    #model.summary()
+
+    #fileName = 'E:/GithubLocal/SErup/data/v2/v2_1/test.h5'
+    fileName = 'C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_1/test.h5'
+    # xtest, ytest = preprocessing(fileName=fileName)
+    xtest, ytest = preprocessing(fileName=fileName,seed=True)
+    # plt.figure()
+    # plt.imshow(xtest[1,:,:,0],cmap='gray')
+
+
+    model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
+    layeridx=4 # 1 4 7 11 14 18 21 22 28 29 30 31 41 44 45 51 52 53 54... 299
+    #testres = model.predict_generator(data_generator(xtest, None, 4, cycle=False, givey=False), verbose=0)
+    intermediate_layer_model = Model(inputs=model.layers[1].input,
+                                     outputs=model.layers[1].layers[layeridx].output)
+
+    #############output###############
+    # intermediate_output = intermediate_layer_model.predict(np.reshape(xtest[20],[1,256,256,3]))
+    # num_out = np.shape(intermediate_output)[3]
+    # plt.figure()
+    # plt.suptitle(model.layers[1].layers[layeridx].name)
+    # for plti in range(num_out):
+    #     plt.subplot(np.ceil(np.sqrt(num_out)), np.ceil(np.sqrt(num_out)), plti+1)
+    #     plt.imshow(intermediate_output[0,:,:,plti])#,cmap='gray')
+    #     plt.axis('off')
+    # #plt.title(model.layers[1].layers[layeridx].name)
+    # #plt.show()
+    # plt.savefig("figure/v2/v2_1/convRes/conv{}.png".format(layeridx),dpi=600)
+
+
+    ##################input##################
+    # plt.figure()
+    # plt.suptitle(input)
+    # for plti in range(3):
+    #     plt.subplot(np.ceil(np.sqrt(3)), np.ceil(np.sqrt(3)), plti + 1)
+    #     plt.imshow(np.reshape(xtest[20],[1,256,256,3])[0, :, :, plti])  # ,cmap='gray')
+    #     plt.axis('off')
+    # # plt.title(model.layers[1].layers[layeridx].name)
+    # # plt.show()
+    # plt.savefig("figure/v2/v2_1/convRes/input.png".format(layeridx), dpi=600)
+
+    ############### Heatmap #######################
+    from matplotlib import cm
+    from tf_keras_vis.gradcam_plus_plus import GradcamPlusPlus
+    from tf_keras_vis.utils.model_modifiers import ReplaceToLinear, ExtractIntermediateLayer
+    from tf_keras_vis.utils.scores import CategoricalScore
+    from tf_keras_vis.gradcam import Gradcam
+
+    # Create Gradcam object
+    X = np.reshape(xtest[20],[1,256,256,3])
+    # gradcam = Gradcam(model.layers[1],
+    #                   model_modifier=[ExtractIntermediateLayer('conv2d_4041'),  # filter num = 192
+    #                                   ReplaceToLinear()],
+    #                   clone=True)
+    gradcam = Gradcam(model.layers[1],
+                      model_modifier=ReplaceToLinear(),
+                      clone=True)
+    #filter_numbers = [0,30,60,90,120,150,180,210,240]
+    score = CategoricalScore([10,])
+    seed_input = tf.random.uniform((1,256,256,3),0,255)
+
+    # Generate heatmap with GradCAM
+    cam = gradcam(score,
+                  X,
+                  penultimate_layer=-1)
+
+    plt.imshow(X[0,:,:,0],cmap='gray')
+    heatmap = np.uint8(cm.jet(cam[0])[..., :3] * 255)
+    plt.imshow(heatmap, cmap='jet', alpha=0.5)  # overlay
+    plt.savefig('C:/Users/jy/Documents/fields/py/SErup/figure/test/v2_1/heatmap/test3.png',dpi=600)
+    print('done')
+
+    ############# filter ####################
+    # import tensorflow as tf
+    # from tf_keras_vis.activation_maximization import ActivationMaximization
+    # from tf_keras_vis.activation_maximization.callbacks import Progress
+    # from tf_keras_vis.activation_maximization.input_modifiers import Jitter, Rotate2D
+    # from tf_keras_vis.activation_maximization.regularizers import TotalVariation2D, Norm
+    # from tf_keras_vis.utils.model_modifiers import ExtractIntermediateLayer, ReplaceToLinear
+    # from tf_keras_vis.utils.scores import CategoricalScore
+    #
+    # activation_maximization = \
+    #     ActivationMaximization(model.layers[1],
+    #                            model_modifier=[ExtractIntermediateLayer('conv2d_4041'), #filter num = 192
+    #                                            ReplaceToLinear()],
+    #                            clone=False)
+    #
+    # filter_numbers = [0,3,6,9,12,15,18,21,24]
+    # score = CategoricalScore(filter_numbers)
+    # seed_input = tf.random.uniform((9,256,256,3),0,255)
+    #
+    # activations = \
+    #     activation_maximization(score, #filter index here
+    #                             steps=200,
+    #                             seed_input=seed_input,
+    #                             # input_modifiers=[Jitter(jitter=16), Rotate2D(degree=1)],
+    #                             # regularizers=[TotalVariation2D(weight=1.0),
+    #                             #               Norm(weight=0.3, p=1)],
+    #                             # optimizer=tf.keras.optimizers.RMSprop(1.0, 0.999),
+    #                             callbacks=[Progress()])
+    # plt.figure()
+    # for i, filter_number in enumerate(filter_numbers):
+    #     plt.subplot(3,3,i+1)
+    #     plt.title('filter[{:03d}]'.format(filter_number))
+    #     # plt.imshow(activations[i,:,:,0])
+    #     plt.imshow(activations[i])
+    #     plt.axis('off')
+    # plt.tight_layout()
+    # #plt.imshow(activations[0])
+    # plt.show()
+    # plt.figure()
+    # for i, filter_number in enumerate(filter_numbers):
+    #     plt.subplot(3, 3, i + 1)
+    #     plt.title('filter[{:03d}]'.format(filter_number))
+    #     plt.imshow(activations[i,:,:,0])
+    #     #plt.imshow(activations[i])
+    #     plt.axis('off')
+    # plt.tight_layout()
+    # # plt.imshow(activations[0])
+    # plt.show()
+    # plt.figure()
+    # for i, filter_number in enumerate(filter_numbers):
+    #     plt.subplot(3, 3, i + 1)
+    #     plt.title('filter[{:03d}]'.format(filter_number))
+    #     plt.imshow(activations[i,:,:,1])
+    #     #plt.imshow(activations[i])
+    #     plt.axis('off')
+    # plt.tight_layout()
+    # # plt.imshow(activations[0])
+    # plt.show()
+    # plt.figure()
+    # for i, filter_number in enumerate(filter_numbers):
+    #     plt.subplot(3, 3, i + 1)
+    #     plt.title('filter[{:03d}]'.format(filter_number))
+    #     plt.imshow(activations[i,:,:,2])
+    #     # plt.imshow(activations[i])
+    #     plt.axis('off')
+    # plt.tight_layout()
+    # # plt.imshow(activations[0])
+    # plt.show()
+    # print('done')
+
     ##########################CME films########################
 
     # CEidx = 55
-    cmelistpath = 'data/cmelist.json'
-    file = open(cmelistpath, 'r', encoding='utf-8')
-    cmelist = json.load(file)
-    cmeStartTimes = [datetime.datetime.strptime(cmei["startTime"], "%Y-%m-%dT%H:%MZ") for cmei in cmelist]
-    ar_search_t1 = 600
-    ar_search_t2 = 20
-    film_t1 = 600
-    film_t2 = 0
-    freq = '15min'
-    ar_threshold = (100, 6)
-    film_path = "figure\\test\\"
-    for CEidx in range(40, 120, 30):
+    # cmelistpath = 'data/cmelist.json'
+    # file = open(cmelistpath, 'r', encoding='utf-8')
+    # cmelist = json.load(file)
+    # cmeStartTimes = [datetime.datetime.strptime(cmei["startTime"], "%Y-%m-%dT%H:%MZ") for cmei in cmelist]
+    # ar_search_t1 = 600
+    # ar_search_t2 = 20
+    # film_t1 = 600
+    # film_t2 = 0
+    # freq = '15min'
+    # ar_threshold = (100, 6)
+    # film_path = "figure\\test\\"
+    # for CEidx in range(40, 120, 30):
+    #
+    #     theCmeInfo = cmelist[CEidx]
+    #     try:
+    #         theArInfo, cache = getDataset.getArInfoWithCmeInfo(theCmeInfo,
+    #                                                            time_earlier1=ar_search_t1,
+    #                                                            time_earlier2=ar_search_t2,
+    #                                                            ar_threshold=ar_threshold,
+    #                                                            fmt="%Y-%m-%dT%H:%MZ")
+    #     except AssertionError:
+    #         continue
+    #
+    #
+    #     CEtstart = cache
+    #
+    #     # dists = getDataset.getDists(theArInfo, CE_coord, CEtstart)
+    #     # minDist, minidx, matchFlag = getDataset.arCmeMatch(dists, theArInfo)
+    #
+    #     model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
+    #
+    #
+    #     checkAevent(cmelist,
+    #                 cmeStartTimes,
+    #                 CEtstart,
+    #                 theArInfo,
+    #                 model,
+    #                 time_earlier1=film_t1,
+    #                 time_earlier2=film_t2,
+    #                 freq=freq,
+    #                 observatorys=("SDO", "SDO", "SDO"),
+    #                 instruments=("HMI", "AIA", "AIA"),
+    #                 measurements=("magnetogram", "193", "1700"),
+    #                 imgSize=256,
+    #                 cmeidx=CEidx,
+    #                 filmChannel=1,
+    #                 fmt="%Y-%m-%dT%H:%MZ",
+    #                 fileDir=os.getcwd() + "\\figure\\test\\v2_1\\film\\",
+    #                 )
+    #
+    #     print("hhh")
 
-        theCmeInfo = cmelist[CEidx]
-        try:
-            theArInfo, cache = getDataset.getArInfoWithCmeInfo(theCmeInfo,
-                                                               time_earlier1=ar_search_t1,
-                                                               time_earlier2=ar_search_t2,
-                                                               ar_threshold=ar_threshold,
-                                                               fmt="%Y-%m-%dT%H:%MZ")
-        except AssertionError:
-            continue
-
-
-        CEtstart = cache
-
-        # dists = getDataset.getDists(theArInfo, CE_coord, CEtstart)
-        # minDist, minidx, matchFlag = getDataset.arCmeMatch(dists, theArInfo)
-
-        model = tensorflow.keras.models.load_model('model/v2/model_v2_7.h5')
-
-
-        checkAevent(cmelist,
-                    cmeStartTimes,
-                    CEtstart,
-                    theArInfo,
-                    model,
-                    time_earlier1=film_t1,
-                    time_earlier2=film_t2,
-                    freq=freq,
-                    observatorys=("SDO", "SDO", "SDO"),
-                    instruments=("HMI", "AIA", "AIA"),
-                    measurements=("magnetogram", "193", "1700"),
-                    imgSize=256,
-                    cmeidx=CEidx,
-                    filmChannel=1,
-                    fmt="%Y-%m-%dT%H:%MZ",
-                    fileDir=os.getcwd() + "\\figure\\test\\v2_1\\film\\",
-                    )
-
-        print("hhh")
 ################### test set performance #######################
         # fileName = 'C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_1/test.h5'
         # # xtest, ytest = preprocessing(fileName=fileName)
