@@ -302,7 +302,7 @@ def positiveSampling(arlist,
                 measurement = measurements[channelIdx]
                 themap = getMap(t, observatory, instrument, measurement)
                 mapt = datetime.datetime.strptime(themap.date.value, '%Y-%m-%dT%H:%M:%S.%f')
-                if (mapt-t) > datetime.timedelta(minutes=10):
+                if abs(mapt-t) > datetime.timedelta(minutes=10):
                     print("No map loaded, t={}, {}".format(t,measurement))
                     return None
                 themaps.append(themap)
