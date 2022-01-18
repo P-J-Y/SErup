@@ -423,7 +423,7 @@ def negativeSamping(arlist,
                 measurement = measurements[channelIdx]
                 themap = getMap(t, observatory, instrument, measurement)
                 mapt = datetime.datetime.strptime(themap.date.value,'%Y-%m-%dT%H:%M:%S.%f')
-                if (mapt-t) > datetime.timedelta(minutes=10):
+                if abs(mapt-t) > datetime.timedelta(minutes=10):
                     print("No map loaded, t={}, {}".format(t,measurement))
                     return None
                 themaps.append(themap)
@@ -544,82 +544,83 @@ def keep_connect(url="https://baidu.com"):
 
 
 ####################get dataset#######################
-# arlist = h5py.File('data/arlist.h5')
-# quiteTable = np.load('data\quiteTable.npz')
-# quitearidxs = quiteTable['quitearidxs']
-# for i in range(1366,1390):
-#     print('i={}'.format(i))
-#     done = False
-#     while not done:
-#         try:
-#             negativeSamping(arlist,
-#                             quiteTable,
-#                             quitearidxs,
-#                             # fileName='data/data2/0/testneg.h5',
-#                             fileName='data/data3/0/neg{}.h5'.format(i),
-#                             observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-#                             instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
-#                             measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
-#                             i1=1 * i,
-#                             # i2=100*(i+1),
-#                             i2=1 * (i + 1))
-#             done = True
-#         except (RuntimeError, IOError):
-#             print("RuntimeError/IOError 检查网络连接是否正常")
-#             intc = keep_connect()
-#             print("网络连接正常 检查Helioviewer网站连接是否正常")
-#             url = 'https://helioviewer.org'
-#             hvc = keep_connect(url=url)
-#             print('连接正常，重新运行程序')
-#             dirname = 'C:/Users/pjy/sunpy/data'
-#             # 把最近下载的文件删除（因为这个文件很可能是坏的）
-#             dir_list = os.listdir(dirname)
-#             if dir_list:
-#                 dir_list = sorted(dir_list,
-#                                   key=lambda x: os.path.getctime(os.path.join(dirname, x)))
-#                 os.remove(dirname + '/' + dir_list[-1])
-#             continue
+arlist = h5py.File('data/arlist.h5')
+quiteTable = np.load('data\quiteTable.npz')
+quitearidxs = quiteTable['quitearidxs']
+# C:\Users\jy\Documents\fields\py\SErup\data\v2\v2_3
+for i in range(1426):
+    print('i={}'.format(i))
+    done = False
+    while not done:
+        try:
+            negativeSamping(arlist,
+                            quiteTable,
+                            quitearidxs,
+                            # fileName='data/v2/v2_3/0/testneg.h5',
+                            fileName='data/v2/v2_3/0/neg{}.h5'.format(i),
+                            observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                            instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
+                            measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
+                            i1=1 * i,
+                            # i2=100*(i+1),
+                            i2=1 * (i + 1))
+            done = True
+        except (RuntimeError, IOError):
+            print("RuntimeError/IOError 检查网络连接是否正常")
+            intc = keep_connect()
+            print("网络连接正常 检查Helioviewer网站连接是否正常")
+            url = 'https://helioviewer.org'
+            hvc = keep_connect(url=url)
+            print('连接正常，重新运行程序')
+            dirname = 'C:/Users/pjy/sunpy/data'
+            # 把最近下载的文件删除（因为这个文件很可能是坏的）
+            dir_list = os.listdir(dirname)
+            if dir_list:
+                dir_list = sorted(dir_list,
+                                  key=lambda x: os.path.getctime(os.path.join(dirname, x)))
+                os.remove(dirname + '/' + dir_list[-1])
+            continue
 
 
-# matchTable = np.load('data/matchTable.npz', allow_pickle=True)
-# matchnums = matchTable['matchnums']
-# matchidxs = matchTable['matchidxs']
-# ARidxs = set(np.concatenate(matchidxs[matchnums != 0]))
-# ARidxs = list(ARidxs)
-# ARidxs.sort()
-# for i in range(1054):
-#     print('i={}'.format(i))
-#     done = False
-#     while not done:
-#         try:
-#             positiveSampling(
-#                 arlist,
-#                 ARidxs,
-#                 # fileName='data/data2/1/testneg.h5',
-#                 fileName='data/data3/1/pos{}.h5'.format(i),
-#                 observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
-#                 instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
-#                 measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
-#                 i1=1 * i,
-#                 # i2=100*(i+1),
-#                 i2=1 * (i + 1),
-#                 )
-#             done = True
-#         except (RuntimeError,IOError):
-#             print("RuntimeError/IOError 检查网络连接是否正常")
-#             intc = keep_connect()
-#             print("网络连接正常 检查Helioviewer网站连接是否正常")
-#             url = 'https://helioviewer.org'
-#             hvc = keep_connect(url=url)
-#             print('连接正常，重新运行程序')
-#             dirname = 'C:/Users/pjy/sunpy/data'
-#             # 把最近下载的文件删除（因为这个文件很可能是坏的）
-#             dir_list = os.listdir(dirname)
-#             if dir_list:
-#                 dir_list = sorted(dir_list,
-#                                   key=lambda x: os.path.getctime(os.path.join(dirname, x)))
-#                 os.remove(dirname + '/' + dir_list[-1])
-#             continue
+matchTable = np.load('data/matchTable.npz', allow_pickle=True)
+matchnums = matchTable['matchnums']
+matchidxs = matchTable['matchidxs']
+ARidxs = set(np.concatenate(matchidxs[matchnums != 0]))
+ARidxs = list(ARidxs)
+ARidxs.sort()
+for i in range(1054):
+    print('i={}'.format(i))
+    done = False
+    while not done:
+        try:
+            positiveSampling(
+                arlist,
+                ARidxs,
+                # fileName='data/data2/1/testneg.h5',
+                fileName='data/v2/v2_3/1/pos{}.h5'.format(i),
+                observatorys=("SDO", "SDO", "SDO", "SDO", "SDO", "SDO", "SDO",),
+                instruments=("HMI", "AIA", "AIA", "AIA", "AIA", "AIA", "AIA"),
+                measurements=("magnetogram", "94", "171", "193", "211", "304", '1700'),
+                i1=1 * i,
+                # i2=100*(i+1),
+                i2=1 * (i + 1),
+                )
+            done = True
+        except (RuntimeError,IOError):
+            print("RuntimeError/IOError 检查网络连接是否正常")
+            intc = keep_connect()
+            print("网络连接正常 检查Helioviewer网站连接是否正常")
+            url = 'https://helioviewer.org'
+            hvc = keep_connect(url=url)
+            print('连接正常，重新运行程序')
+            dirname = 'C:/Users/pjy/sunpy/data'
+            # 把最近下载的文件删除（因为这个文件很可能是坏的）
+            dir_list = os.listdir(dirname)
+            if dir_list:
+                dir_list = sorted(dir_list,
+                                  key=lambda x: os.path.getctime(os.path.join(dirname, x)))
+                os.remove(dirname + '/' + dir_list[-1])
+            continue
 
 
 #1054 pos
@@ -627,33 +628,33 @@ def keep_connect(url="https://baidu.com"):
 
 
 ##################################merge dataset###########################
-def mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256):
-    files = os.listdir(filePath)
-    output = np.zeros((len(files)*12,imgSize,imgSize,len(waveidxs)),'single')
-    labels = np.zeros(len(files)*12,'int32')
-    outputpointer = 0
-    for f in files:
-        FILE = h5py.File(filePath+f)
-        DATA = np.array(FILE['DATA'])
-        FILE.close()
-        DATAnum = np.shape(DATA)[0]
-        # [np.all(DATA[i,:,:,:]==0) for i in range(DATAnum)]
-        output[outputpointer:(outputpointer+DATAnum),:,:,:] = DATA[:,:,:,waveidxs]
-        if 'pos' in f:
-            labels[outputpointer:(outputpointer+DATAnum)] = 1
-        elif 'neg' in f:
-            labels[outputpointer:(outputpointer+DATAnum)] = 0
-        else:
-            raise ValueError('文件名格式不对，应该为包含neg或pos的格式，以区分正负样本')
-        outputpointer = outputpointer + DATAnum
-    FILE = h5py.File(outputfile,'w')
-    FILE.create_dataset("x",data=output[:outputpointer,:,:,:])
-    FILE.create_dataset("y", data=labels[:outputpointer])
-    FILE.close()
-
-filePath = 'F:/SErupData/data/data2_2/train/'
-outputfile = 'F:/SErupData/data/v2/v2_2/train.h5'
-mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256)
+# def mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256):
+#     files = os.listdir(filePath)
+#     output = np.zeros((len(files)*12,imgSize,imgSize,len(waveidxs)),'single')
+#     labels = np.zeros(len(files)*12,'int32')
+#     outputpointer = 0
+#     for f in files:
+#         FILE = h5py.File(filePath+f)
+#         DATA = np.array(FILE['DATA'])
+#         FILE.close()
+#         DATAnum = np.shape(DATA)[0]
+#         # [np.all(DATA[i,:,:,:]==0) for i in range(DATAnum)]
+#         output[outputpointer:(outputpointer+DATAnum),:,:,:] = DATA[:,:,:,waveidxs]
+#         if 'pos' in f:
+#             labels[outputpointer:(outputpointer+DATAnum)] = 1
+#         elif 'neg' in f:
+#             labels[outputpointer:(outputpointer+DATAnum)] = 0
+#         else:
+#             raise ValueError('文件名格式不对，应该为包含neg或pos的格式，以区分正负样本')
+#         outputpointer = outputpointer + DATAnum
+#     FILE = h5py.File(outputfile,'w')
+#     FILE.create_dataset("x",data=output[:outputpointer,:,:,:])
+#     FILE.create_dataset("y", data=labels[:outputpointer])
+#     FILE.close()
+#
+# filePath = 'F:/SErupData/data/data2_2/train/'
+# outputfile = 'F:/SErupData/data/v2/v2_2/train.h5'
+# mergeDataset(filePath, outputfile, waveidxs=[0,3,6], imgSize=256)
 
 ################ plot to see the data ##################
 # def preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_1/test.h5',):
