@@ -15,7 +15,7 @@ from matplotlib.pyplot import imshow
 import V1_utils
 
 
-def preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_2/test.h5',):
+def preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_3/test.h5',):
     file = h5py.File(fileName)
     x_orig = np.array(file['x'])
     y_orig = np.array(file['y'])
@@ -241,8 +241,8 @@ def model_mobile2(input_shape,params):
 if __name__ == '__main__':
     K.set_image_data_format('channels_last')
     classes = [0, 1]
-    xtrain,ytrain = preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_2/train.h5')
-    xdev,ydev = preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_2/dev.h5')
+    xtrain,ytrain = preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_3/train.h5')
+    xdev,ydev = preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_3/dev.h5')
 
     ################################# hyperopt model #####################################
     from hyperopt import hp, STATUS_OK, Trials, fmin, tpe
@@ -254,13 +254,13 @@ if __name__ == '__main__':
     # batch_size 2 to 16
 
     space = {
-        'lr': hp.loguniform('lr', -10, -3),
-        'lambda_l2': hp.loguniform('lambda_l2', -10, -3),
+        'lr': hp.loguniform('lr', -10, -0),
+        'lambda_l2': hp.loguniform('lambda_l2', -10, -0),
         'batch_size': hp.choice('batch_size', [16,])
     }
 
     f1 = 0
-    workidx=6
+    workidx=0
     print('work {}'.format(workidx))
     maxtrailnum = 50
     def trainAmodel(params):
@@ -301,7 +301,7 @@ if __name__ == '__main__':
         print("f1 = {}, precision = {}, recall = {}".format(cvf1s, p, r))
         if cvf1s > f1:
             f1 = cvf1s
-            model_v1.save('model/v2_2/model_v2_{}.h5'.format(workidx))
+            model_v1.save('model/v2_3/model_v2_3_{}.h5'.format(workidx))
             print(f1)
             plt.figure()
             plt.plot(history.history['loss'], 'b', label='Training loss')
@@ -310,7 +310,7 @@ if __name__ == '__main__':
             plt.legend()
             plt.xlabel('epoch')
             plt.ylabel('loss')
-            plt.savefig('figure/log/loss_v2_2_{}.jpg'.format(workidx))
+            plt.savefig('figure/v2/v2_3/log/loss_v2_3_{}.jpg'.format(workidx))
         return {
             'loss': -cvf1s,
             'status': STATUS_OK
@@ -320,7 +320,7 @@ if __name__ == '__main__':
     trials = Trials()
     best = fmin(trainAmodel, space, algo=tpe.suggest, max_evals=maxtrailnum, trials=trials)
 
-    filename = 'model/v2_2/log_v2_{}.npz'.format(workidx)
+    filename = 'model/v2_3/log_v2_{}.npz'.format(workidx)
     np.savez(filename, trials=trials, best=best)
 
     print('best')
@@ -348,7 +348,7 @@ if __name__ == '__main__':
     plt.title('f1')
     cb = plt.colorbar()
     # cb.set_label('log2[BatchSize]', labelpad=-1)
-    plt.savefig('model/v2_2/hyparams_v2_{}.jpg'.format(workidx))
+    plt.savefig('model/v2_3/hyparams_v2_{}.jpg'.format(workidx))
     print('done')
 
     ###############
@@ -356,3 +356,4 @@ if __name__ == '__main__':
 
     # v2_1 works: #1 test #2 model_v2 #3 vgg-16 keep few layers #4 inception 4 layers #5 mobile net 4 layers#6-8 三个 4层 不要dropout 而是正则化（batchsize控制到16）
     # v2_2 dell # 这电脑上的batch 5 之后是8
+    # v2_3 works: #1 inception
