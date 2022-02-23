@@ -15,7 +15,7 @@ from matplotlib.pyplot import imshow
 import V1_utils
 
 
-def preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_3/test.h5',):
+def preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_3/test.h5',):
     file = h5py.File(fileName)
     x_orig = np.array(file['x'])
     y_orig = np.array(file['y'])
@@ -241,8 +241,8 @@ def model_mobile2(input_shape,params):
 if __name__ == '__main__':
     K.set_image_data_format('channels_last')
     classes = [0, 1]
-    xtrain,ytrain = preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_3/train.h5')
-    xdev,ydev = preprocessing(fileName='C:/Users/jy/Documents/fields/py/SErup/data/v2/v2_3/dev.h5')
+    xtrain,ytrain = preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_3/train.h5')
+    xdev,ydev = preprocessing(fileName='E:/GithubLocal/SErup/data/v2/v2_3/dev.h5')
 
     ################################# hyperopt model #####################################
     from hyperopt import hp, STATUS_OK, Trials, fmin, tpe
@@ -254,13 +254,13 @@ if __name__ == '__main__':
     # batch_size 2 to 16
 
     space = {
-        'lr': hp.loguniform('lr', -10, -0),
-        'lambda_l2': hp.loguniform('lambda_l2', -10, -0),
+        'lr': hp.loguniform('lr', -9, -2),
+        'lambda_l2': hp.loguniform('lambda_l2', -9, -0),
         'batch_size': hp.choice('batch_size', [16,])
     }
 
     f1 = 0
-    workidx=0
+    workidx=2
     print('work {}'.format(workidx))
     maxtrailnum = 50
     def trainAmodel(params):
@@ -279,13 +279,13 @@ if __name__ == '__main__':
                                                          classes=classes,
                                                          y=ytrain[:, 0])
         cw = dict(enumerate(class_weight))
-        early_stopping = EarlyStopping(monitor='val_loss', patience=8, min_delta=0.8, mode='min')
+        early_stopping = EarlyStopping(monitor='val_loss', patience=10, min_delta=0.8, mode='min')
 
         history = model_v1.fit_generator(generator=data_generator(xtrain, ytrain, params['batch_size']),
                                          steps_per_epoch=steps_per_epoch,
                                          epochs=30,
                                          verbose=0,
-                                         validation_data=(xdev[::40], ydev[::40]),
+                                         validation_data=(xdev[::80], ydev[::80]),
                                          callbacks=[early_stopping],
                                          # callbacks=[metrics],
                                          class_weight=cw,
@@ -356,4 +356,4 @@ if __name__ == '__main__':
 
     # v2_1 works: #1 test #2 model_v2 #3 vgg-16 keep few layers #4 inception 4 layers #5 mobile net 4 layers#6-8 三个 4层 不要dropout 而是正则化（batchsize控制到16）
     # v2_2 dell # 这电脑上的batch 5 之后是8
-    # v2_3 works: #1 inception
+    # v2_3 works: #0 inception on Dell；  #1 inception batchsize=16 on legion #2 缩小范围 on legion
